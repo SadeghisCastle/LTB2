@@ -51,7 +51,7 @@ class HyperSpectralView(ttk.Frame):
 
         # Make resizable
         self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
     # -------------------------------------------------------------------------
     # UI BUILDERS
