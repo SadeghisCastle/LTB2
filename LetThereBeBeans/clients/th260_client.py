@@ -30,12 +30,12 @@ class TH260Client:
 
     # -- Acquisition -----------------------------------------------------------
 
-    def acquire(self, tacq_ms: int, output_dir: str, wl: int, ix: int, iy: int) -> None:
+    def acquire(self, tacq_ms: int, output_dir: str, wl: float, ix: int, iy: int) -> None:
         """
         Trigger a measurement. The helper writes data to disk in output_dir.
         We just ensure the call succeeds (OK) and wait long enough.
         """
-        cmd = f"measure {output_dir} {int(ix)} {int(iy)} {int(wl)} {int(tacq_ms)}"
+        cmd = f"measure {output_dir} {int(ix)} {int(iy)} {float(wl)} {int(tacq_ms)}"
         # Acquisition time affects how long the helper runs; add a cushion.
         timeout = max(10.0, tacq_ms / 1000.0 + 10.0)
         self.proc.send(cmd, timeout=timeout)

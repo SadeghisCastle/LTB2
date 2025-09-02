@@ -109,7 +109,6 @@ class FlimView(ttk.Frame):
             tacq = int(self.tacq_e.get())
             out = self.out_e.get().strip()
             if not out: raise ValueError("Please choose an output folder.")
-            os.makedirs(out, exist_ok=True)
 
             self.stop_flag = False
             if self.worker and self.worker.is_alive():
