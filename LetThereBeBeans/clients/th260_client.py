@@ -13,13 +13,13 @@ class TH260Client:
     """
 
     def __init__(self, exe: str):
-        self.proc = LineProcess(exe)
+        self.proc = _LineProcess(exe)
 
     # -- Setup / connection ----------------------------------------------------
 
     def init(self, output_dir: str, ix: int, iy: int) -> None:
         """Initialize helper with an output directory and starting pixel coords."""
-        self.proc.send_ok(f"init {output_dir} {int(ix)} {int(iy)}", timeout=20.0)
+        self.proc.send(f"init {output_dir} {int(ix)} {int(iy)}", timeout=20.0)
 
     def connect(self, output_dir: str = "dump", ix: int = 1, iy: int = 1) -> None:
         """
@@ -38,7 +38,7 @@ class TH260Client:
         cmd = f"measure {output_dir} {int(ix)} {int(iy)} {float(wl_nm)} {int(tacq_ms)}"
         # Acquisition time affects how long the helper runs; add a cushion.
         timeout = max(10.0, tacq_ms / 1000.0 + 10.0)
-        self.proc.send_ok(cmd, timeout=timeout)
+        self.proc.send(cmd, timeout=timeout)
 
     # -- Optional helpers ------------------------------------------------------
 
@@ -47,7 +47,7 @@ class TH260Client:
         Ask the helper for instrument info if it supports `info`.
         Expected line: 'OK RES=<ps> CH=<n> LEN=<bins>'
         """
-        resp = self.proc.send_ok("info")
+        resp = self.proc.send("info")
         parts = resp.split()[1:]  # drop 'OK'
         try:
             kv = dict(p.split("=", 1) for p in parts)
