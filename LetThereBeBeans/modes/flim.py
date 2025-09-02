@@ -12,7 +12,7 @@ from clients.stage_client import StageClient
 from clients.th260_client import TH260Client
 from clients.cornerstone_client import CornerstoneClient
 
-# Fixed max output voltage for KCube Piezo in tenths of a volt (e.g., 750 = 7.50 V)
+# Fixed max output voltage for KCube Piezo in tenths of a volt (e.g., 750 = 75.0 V)
 FIXED_VMAX_TENTHS = 750
 
 class FlimView(ttk.Frame):
@@ -34,13 +34,13 @@ class FlimView(ttk.Frame):
         left = ttk.LabelFrame(self, text="Config", padding=10)
         left.pack(side="left", fill="y", padx=10, pady=10)
 
-        self.width_e  = ttk.Entry(left);  self._row(left, "Width (px):",  self.width_e,  0, "5")
-        self.height_e = ttk.Entry(left);  self._row(left, "Height (px):", self.height_e, 1, "5")
+        self.width_e  = ttk.Entry(left);  self._row(left, "Width (px):",  self.width_e,  0, "1")
+        self.height_e = ttk.Entry(left);  self._row(left, "Height (px):", self.height_e, 1, "1")
 
         # Wavelengths as Start/End/Steps (like HyperSpectral)
-        self.wl_start_e = ttk.Entry(left); self._row(left, "Start λ (nm):", self.wl_start_e, 2, "500")
-        self.wl_end_e   = ttk.Entry(left); self._row(left, "End   λ (nm):", self.wl_end_e,   3, "520")
-        self.wl_steps_e = ttk.Entry(left); self._row(left, "Steps:",         self.wl_steps_e, 4, "3")
+        self.wl_start_e = ttk.Entry(left); self._row(left, "Start λ (nm):", self.wl_start_e, 2, "610")
+        self.wl_end_e   = ttk.Entry(left); self._row(left, "End   λ (nm):", self.wl_end_e,   3, "610")
+        self.wl_steps_e = ttk.Entry(left); self._row(left, "Steps:",         self.wl_steps_e, 4, "1")
 
         self.tacq_e   = ttk.Entry(left);  self._row(left, "Tacq (ms):",   self.tacq_e,   5, "1000")
 
@@ -84,7 +84,7 @@ class FlimView(ttk.Frame):
             if self.mono is None:
                 self.mono = CornerstoneClient(self.config["helpers"]["cornerstone"])
                 self.mono.open()
-            self.status.config(text=f"Connected. Stage vmax={FIXED_VMAX_TENTHS/100:.2f} V")
+            self.status.config(text=f"Connected.")
         except Exception as e:
             messagebox.showerror("Connect", str(e))
 
@@ -133,6 +133,7 @@ class FlimView(ttk.Frame):
                         if self.stop_flag: raise KeyboardInterrupt()
                         self.mono.goto(nm)
                         time.sleep(0.8)  # settle
+                        print(tacq, " ", nm)
                         self.th260.acquire(tacq_ms=tacq, output_dir=out, wl=nm, ix=ix, iy=iy)
                         self._post_status(f"({iy+1}/{H}, {ix+1}/{W}) λ={nm:.2f} nm  tacq={tacq} ms")
             self._post_status("Done.")

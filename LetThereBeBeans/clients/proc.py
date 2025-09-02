@@ -16,15 +16,16 @@ class _LineProcess:
             text=True, encoding="utf-8", bufsize=1
         )
         greet = self.p.stdout.readline()
-        print("greet", exe_path, greet, "\n")
+        print(greet, "\n")
         if not greet.startswith("OK"):
             raise RuntimeError(f"{os.path.basename(exe_path)} not ready: {greet}")
 
     def send(self, line, timeout=10.0):
         self.p.stdin.write(line + "\n")
+        print(line, "\n")
         self.p.stdin.flush()
         resp = self.p.stdout.readline()
-        #print("resp", resp)
+        print("resp", resp)
         if not resp.startswith("OK"):
             raise RuntimeError(resp)
         return resp
