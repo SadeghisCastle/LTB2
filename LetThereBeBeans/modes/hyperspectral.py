@@ -72,9 +72,9 @@ class HyperSpectralView(ttk.Frame):
         scan = ttk.LabelFrame(self, text="Scan Settings", padding=10)
         scan.grid(row=1, column=0, padx=10, pady=10, sticky="n")
 
-        self.start_e = ttk.Entry(scan); self._row(scan, "Start λ (nm):", self.start_e, 0, "500")
-        self.end_e   = ttk.Entry(scan); self._row(scan, "End   λ (nm):", self.end_e,   1, "520")
-        self.steps_e = ttk.Entry(scan); self._row(scan, "Step Count:",    self.steps_e, 2, "20")
+        self.start_e = ttk.Entry(scan); self._row(scan, "Start λ (nm):", self.start_e, 0, "550")
+        self.end_e   = ttk.Entry(scan); self._row(scan, "End   λ (nm):", self.end_e,   1, "850")
+        self.steps_e = ttk.Entry(scan); self._row(scan, "Step Count:",    self.steps_e, 2, "300")
 
         self.out_e = ttk.Entry(scan, width=28); self._row(scan, "Save CSV:", self.out_e, 3)
         tb.Button(scan, text="Browse", bootstyle=INFO, command=self._pick_csv)\
@@ -231,7 +231,7 @@ class HyperSpectralView(ttk.Frame):
 
             # Go to start and open shutter
             self.mono.goto(start_wl)
-            time.sleep(0.8)
+            time.sleep(2)
             self.mono.open_shutter()
 
             # Kick off step loop
@@ -261,12 +261,15 @@ class HyperSpectralView(ttk.Frame):
         try:
             # Move to wavelength
             self.mono.goto(wl)
-            time.sleep(0.3)
+            time.sleep(0.5)
 
             # Measure intensity
             try:
                 import DataMeasurer as dm
-                intensity = dm.record()
+                intensities = []
+                for i in range(1, 2):
+                    intensities.append(dm.record())
+                intensity = np.average(intensities)
             except Exception:
                 intensity = 0.0
 
