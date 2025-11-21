@@ -21,7 +21,6 @@ def serialInit(serPort, baud_rate):
 
     devPort = serial.Serial(serPort, baud_rate)
     time.sleep(2)
-    
     return(devPort)
 
 def serialClose(devPort):
