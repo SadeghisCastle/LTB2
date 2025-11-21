@@ -217,7 +217,7 @@ ApplicationWindow {
                 y: -117
                 width: 54
                 height: 46
-                source: "../../../Downloads/x-wing.png"
+                source: "x-wing.png"
                 rotation: 20.014
                 fillMode: Image.PreserveAspectFit
             }
