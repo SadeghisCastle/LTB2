@@ -107,15 +107,26 @@ ApplicationWindow{
                     height: columnLayout.height
                     color: "#6f6f6f"
 
-                    TextInput {
-                        id: startWavelength
-                        x: 33
-                        y: 26
-                        width: 80
-                        height: 20
-                        text: qsTr("Start")
-                        font.pixelSize: 12
+                TextInput {
+                    id: startWavelength
+                    x: 33
+                    y: 30
+                    width: 80
+                    height: 20
+                    text: "550"
+                    font.pixelSize: 12
+                    color: "black"
+    
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "white"
+                        z: -1
                     }
+    
+                    onEditingFinished: {
+                        CornerstoneBackend.setStartWavelength(text)
+                    }
+                }
 
                     TextInput {
                         id: endWavelength
@@ -123,8 +134,19 @@ ApplicationWindow{
                         y: 58
                         width: 80
                         height: 20
-                        text: qsTr("End")
+                        text: "1000"
                         font.pixelSize: 12
+                        color: "black"
+    
+                        Rectangle {
+                            anchors.fill: parent
+                            color: "white"
+                            z: -1
+                        }
+    
+                        onEditingFinished: {
+                            CornerstoneBackend.setEndWavelength(text)
+                        }
                     }
 
                     TextInput {
@@ -135,6 +157,16 @@ ApplicationWindow{
                         height: 20
                         text: qsTr("Number of Steps")
                         font.pixelSize: 12
+
+                        Rectangle{
+                            anchors.fill: parent
+                            color: "white"
+                            z:-1
+                            }
+
+                        onEditingFinished:{
+                            CornerstoneBackend.setNumSteps(text)
+                            }
                     }
 
                     Button {

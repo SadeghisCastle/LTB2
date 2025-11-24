@@ -13,6 +13,7 @@ class XWing(QObject):
         self._home_x = 0.0
         self._home_y = 0.0
         self._step = 1.0  # mm per button press (change as needed)
+        self.coordinates = []
 
     # --- X position as a float (if you ever want numeric binding) ---
     @Property(float, notify=xChanged)
@@ -85,9 +86,24 @@ class XWing(QObject):
         except ValueError:
             print("Invalid position input:", x_str, y_str)
 
+    @Slot(float, float)
+    def storeCoordinates(self, x, y):
+        self.coordinates.append((self._x,self._y))
+
+    @Slot()
+    def recall(self):
+        for i in range(len(self.coordinates)):
+            self._x = self.coordinates[i][0]
+            self._y = self.coordinates[i][1]
+            print(self._x, self._y)
+            time.sleep(2)
+
 class Cornerstone(QObject):
     waveChanged =  Signal()
     shutterChanged = Signal()
+    startWavelengthChanged = Signal()
+    endWavelengthChanged = Signal()
+    numStepsChanged = Signal()
 
     def __init__(self):
         super().__init__()
@@ -109,6 +125,36 @@ class Cornerstone(QObject):
     @Property(str, notify = shutterChanged)
     def shutterPos(self):
         return self.shutterState
+
+    @Property(int, notify=numStepsChanged)
+    def numStepsValue(self):
+        return self.numSteps
+    
+    @Slot(str)
+    def setNumSteps(self, value_str):
+        self.numSteps = int(value_str)
+        self.numStepsChanged.emit()
+        print(self.numSteps)
+
+    @Property(float, notify=startWavelengthChanged)
+    def startWavelengthValue(self):
+        return self.startWavelength
+    
+    @Property(float, notify=endWavelengthChanged)
+    def endWavelengthValue(self):
+        return self.endWavelength
+    
+    @Slot(str)
+    def setStartWavelength(self, value_str):
+        self.startWavelength = float(value_str)
+        self.startWavelengthChanged.emit()
+        print(self.startWavelength)
+    
+    @Slot(str)
+    def setEndWavelength(self, value_str):
+        self.endWavelength = float(value_str)
+        self.endWavelengthChanged.emit()
+        print(self.endWavelength)
     
     @Slot(str)
     def setWavelength(self, target_Str):

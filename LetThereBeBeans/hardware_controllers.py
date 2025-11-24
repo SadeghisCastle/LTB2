@@ -51,8 +51,6 @@ class ArduinoClient:
         time.sleep(2)
         print('all good')
 
-        return 1
-
     def serialRead(self):
 
         out = self.devPort.readline().decode('utf-8').strip()

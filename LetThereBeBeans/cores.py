@@ -15,9 +15,11 @@ class XWing(QObject):
         self._home_x = 0.0
         self._home_y = 0.0
         self._step = 1.0  # mm per button press (change as needed)
-        self.rate = 300
+        self.rate = 50
         self.ac = ArduinoClient("COM4", 115200)
         print('all good')
+        self.coordinates = []
+        self.cornerstone = Cornerstone
         
 
     # --- X position as a float (if you ever want numeric binding) ---
@@ -98,3 +100,84 @@ class XWing(QObject):
         self.xChanged.emit()
         self.yChanged.emit()
 
+    @Slot(float, float)
+    def storeCoordinates(self, x, y):
+        self.coordinates.append((self._x,self._y))
+        print(self.coordinates)
+
+    @Slot()
+    def recall(self):
+        print("Meow")
+
+class Cornerstone(QObject):
+    waveChanged =  Signal()
+    shutterChanged = Signal()
+    startWavelengthChanged = Signal()
+    endWavelengthChanged = Signal()
+    numStepsChanged = Signal()
+    def __init__(self):
+        super().__init__()
+        self.mono = CornerstoneClient("helpers/cornerstone_helper.exe")
+        self.currentWavelength = self.mono.position()
+        self.targetWavelength = 630
+        self.shutterState = "Closed"
+        self.startWavelength = 550
+        self.endWavelength = 1000
+        self.numSteps = 450
+        self.currentGrating = 3
+        print("all good")
+
+
+    @Property(str, notify= waveChanged)
+    def wavePos(self):
+        return self.currentWavelength
+
+    @Property(str, notify = shutterChanged)
+    def shutterPos(self):
+        return self.shutterState
+
+    @Property(float, notify=startWavelengthChanged)
+    def startWavelengthValue(self):
+        return self.startWavelength
+    
+    @Property(float, notify=endWavelengthChanged)
+    def endWavelengthValue(self):
+        return self.endWavelength
+    
+    @Slot(str)
+    def setStartWavelength(self, value_str):
+        self.startWavelength = float(value_str)
+        self.startWavelengthChanged.emit()
+        print(self.startWavelength)
+    
+    @Slot(str)
+    def setEndWavelength(self, value_str):
+        self.endWavelength = float(value_str)
+        self.endWavelengthChanged.emit()
+        print(self.endWavelength)
+    
+    @Slot(str)
+    def setWavelength(self, target_Str):
+        self.targetWavelength = float(target_Str)
+        self.mono.goto(self.targetWavelength)
+
+        while self.mono.position() == -1:
+            time.sleep(0.1)
+
+        self.currentWavelength = self.mono.position()
+        self.waveChanged.emit()
+        print('all good')
+
+    @Slot()
+    def openShutter(self):
+        self.mono.open_shutter()
+        print("Shutter opened")
+        self.shutterState = "Open"
+        self.shutterChanged.emit()
+
+    @Slot()
+    def closeShutter(self):
+        self.mono.close_shutter()
+        print("Shutter closed")
+        self.shutterState = "Closed"
+        self.shutterChanged.emit()
