@@ -8,7 +8,7 @@ from PySide6.QtCore import QUrl
 
 from automation_clusters import HyperSpectral
 from cores import XWing
-from pretend_cores import Cornerstone
+from cores import Cornerstone
 
 
 

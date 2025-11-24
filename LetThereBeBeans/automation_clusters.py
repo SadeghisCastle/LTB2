@@ -4,21 +4,23 @@ from cores import XWing, Cornerstone
 
 class Spectrum(QObject):
     finished = Signal()
-    progress = Signal(float, float, float)
+    progress = Signal(float, float, float, float)
     
-    def __init__(self, coordinates, start_wl, end_wl, num_steps, ac, rate):
+    def __init__(self, coordinates, start_wl, end_wl, num_steps, ac, mono, digi, rate):
         super().__init__()
         self.coordinates = coordinates
         self.start_wl = start_wl
         self.end_wl = end_wl
         self.num_steps = num_steps
         self.ac = ac
+        self.mono = mono
+        self.digi = digi
         self.rate = rate
         self._is_running = True
     
     def run(self):
         step_size = (self.end_wl - self.start_wl) / (self.num_steps - 1)
-        
+        self.mono.open_shutter()
         for i in range(len(self.coordinates)):
             if not self._is_running:
                 break
@@ -31,7 +33,10 @@ class Spectrum(QObject):
                     break
                     
                 wavelength = self.start_wl + j * step_size
-                self.progress.emit(x, y, wavelength)
+                self.mono.goto(wavelength)
+                time.sleep(0.5)
+                data = 1 # placeholder
+                self.progress.emit(x, y, wavelength, data)
                 time.sleep(2)
         
         self.finished.emit()
@@ -61,6 +66,7 @@ class HyperSpectral(QObject):
         print('X-Wing Online')
         self.coordinates = []
         self.mono = CornerstoneClient("LetThereBeBeans/helpers/cornerstone_helper.exe")
+        self.mono.open()
         self.currentWavelength = 10.0
         self.targetWavelength = 630
         self.shutterState = "Open"
@@ -69,9 +75,12 @@ class HyperSpectral(QObject):
         self.numSteps = 450
         self.currentGrating = 2
         self.scan_thread = None
-        self.scan_worker = None
+        self.scan = None
         
         print("Cornerstone Online")
+
+        self.digi = NIScopeClient()
+        print("Digitizer online")
     
     # X-Wing Properties
     @Property(float, notify=xChanged)
@@ -93,7 +102,7 @@ class HyperSpectral(QObject):
     # Cornerstone Properties
     @Property(str, notify= waveChanged)
     def wavePos(self):
-        return f"{self.currentWavelength:.2f}"
+        return str(self.currentWavelength)
 
     @Property(str, notify = shutterChanged)
     def shutterPos(self):
@@ -189,12 +198,14 @@ class HyperSpectral(QObject):
             return
         
         # Create the object that will scan on a different thread
-        self.scan_worker = Spectrum(
+        self.scan = Spectrum(
             self.coordinates,
             self.startWavelength,
             self.endWavelength,
             self.numSteps,
             self.ac,
+            self.mono,
+            self.digi,
             self.rate
         )
 
@@ -202,20 +213,22 @@ class HyperSpectral(QObject):
         self.scan_thread = QThread()
         
         # Tell the object what thread it will run on
-        self.scan_worker.moveToThread(self.scan_thread)
+        self.scan.moveToThread(self.scan_thread)
         
         # Connect the signals from the object running on the thread to the main thread like we saw in the tutorial
-        self.scan_thread.started.connect(self.scan_worker.run)
-        self.scan_worker.finished.connect(self.scan_thread.quit)
-        self.scan_worker.finished.connect(self.scan_worker.deleteLater)
+        self.scan_thread.started.connect(self.scan.run)
+        self.scan.finished.connect(self.scan_thread.quit)
+        self.scan.finished.connect(self.scan.deleteLater)
         self.scan_thread.finished.connect(self.scan_thread.deleteLater)
-        self.scan_worker.progress.connect(self._updateScanProgress)
+        # As an example, here progress is connected to updateScanProgress so whenever progress is 
+        # emitted, it calls updateScanProgress which then emits all the individual signals
+        self.scan.progress.connect(self._updateScanProgress)
         
         # Run the automation
         self.scan_thread.start()
         print("Scan started")
     
-    def _updateScanProgress(self, x, y, wavelength):
+    def _updateScanProgress(self, x, y, wavelength, data):
         """Updates Properties from within the threaded process because the thread will 
            only return once at the end if this isn't called from within the thread"""
         self._x = x
@@ -229,8 +242,8 @@ class HyperSpectral(QObject):
     @Slot()
     def stopScan(self):
         """Stop the scan"""
-        if self.scan_worker:
-            self.scan_worker.stop()
+        if self.scan:
+            self.scan.stop()
             print("Stopping scan...")
     
     # Cornerstone Properties
@@ -250,20 +263,20 @@ class HyperSpectral(QObject):
     def setWavelength(self, target_Str):
         self.targetWavelength = float(target_Str)
         self.currentWavelength = target_Str
-        #self.mono.goto(targetWavelength)
+        self.mono.goto(self.targetWavelength)
         self.waveChanged.emit()
         print('all good')
 
     @Slot()
     def openShutter(self):
-        #self.mono.open_shutter()
+        self.mono.open_shutter()
         print("Shutter opened")
         self.shutterState = "Open"
         self.shutterChanged.emit()
 
     @Slot()
     def closeShutter(self):
-        #self.mono.close_shutter()
+        self.mono.close_shutter()
         print("Shutter closed")
         self.shutterState = "Closed"
         self.shutterChanged.emit()
