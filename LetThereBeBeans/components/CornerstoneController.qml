@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.VectorImage
 import QtQuick.VirtualKeyboard.Styles
 
 Row {
@@ -188,7 +187,7 @@ Row {
                 display: AbstractButton.TextOnly
                 icon.width: 44
                 icon.height: 59
-                icon.source: "../Interface Graphics/Cornerstone/button1.png"
+                icon.source: "button1.png"
                 icon.cache: true
                 icon.color: "#00ffffff"
             }
@@ -520,7 +519,7 @@ Row {
                     y: 97
                     width: 56
                     height: 35
-                    source: "../Interface Graphics/Cornerstone/Spectrograph Symbol.png"
+                    source: "Spectrograph Symbol.png"
                     fillMode: Image.PreserveAspectCrop
                 }
             }
