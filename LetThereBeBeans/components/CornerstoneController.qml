@@ -58,6 +58,7 @@ Row {
                 checkable: false
                 flat: false
                 highlighted: false
+                onClicked: CornerstoneBackend.openShutter()
 
                 Connections {
                     target: openShutter
@@ -100,6 +101,7 @@ Row {
                 text: qsTr("Close")
                 flat: false
                 highlighted: false
+                onClicked: CornerstoneBackend.closeShutter()
 
                 Connections {
                     target: closeShutter
@@ -139,7 +141,7 @@ Row {
                 y: 3
                 width: 80
                 height: 20
-                text: qsTr("Wavelength...")
+                text: "630"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignRight
                 verticalAlignment: Text.AlignVCenter
@@ -160,7 +162,7 @@ Row {
                 id: currentWavelength
                 x: 15
                 y: 5
-                text: qsTr("Current Wavelength")
+                text: CornerstoneBackend.wavePos
                 font.pixelSize: 12
             }
         }
@@ -190,6 +192,7 @@ Row {
                 icon.source: "button1.png"
                 icon.cache: true
                 icon.color: "#00ffffff"
+                onClicked: CornerstoneBackend.setWavelength(setWavelength.text)
             }
         }
 
@@ -323,8 +326,9 @@ Row {
                     y: 17
                     width: 64
                     height: 20
-                    text: qsTr("Start")
+                    text: "550"
                     font.pixelSize: 12
+                    onEditingFinished: CornerstoneBackend.setStartWavelength(text)
 
                     Rectangle {
                         id: rectangle8
@@ -343,8 +347,9 @@ Row {
                     y: 49
                     width: 64
                     height: 20
-                    text: qsTr("End")
+                    text: "1000"
                     font.pixelSize: 12
+                    onEditingFinished: CornerstoneBackend.setEndWavelength(text)
 
                     Rectangle {
                         id: rectangle9
@@ -363,8 +368,9 @@ Row {
                     y: 81
                     width: 80
                     height: 20
-                    text: qsTr("Number of Steps")
+                    text: "450"
                     font.pixelSize: 12
+                    onEditingFinished: CornerstoneBackend.setNumSteps(text)
 
                     Rectangle {
                         id: rectangle10
