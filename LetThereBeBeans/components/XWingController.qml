@@ -1,11 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 
-ApplicationWindow{
-    visible: true
-    width: 400
-    height: 300
-    title: qsTr("X-Wing Controller")
 Rectangle {
     id: xwingController
     width: 200
@@ -661,5 +656,4 @@ Rectangle {
 
 
 
-}
 }

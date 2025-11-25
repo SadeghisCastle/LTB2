@@ -3,8 +3,8 @@ import QtQuick.Controls 2.15
 
 ApplicationWindow {
     visible: true
-    width: 800
-    height: 300
+    width: 600
+    height: 350
     title: "Hyperspectral"
     
     Row {
@@ -12,8 +12,8 @@ ApplicationWindow {
         spacing: 0
         
         Loader {
-            width: 400
-            height: 300
+            width: 200
+            height: 350
             source: "XWingController.qml"
         }
         

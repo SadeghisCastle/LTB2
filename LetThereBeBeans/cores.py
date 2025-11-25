@@ -1,7 +1,9 @@
 from PySide6.QtCore import QObject, Signal, Property, Slot
 from hardware_controllers import *
 
-
+""" Create QObject classes for each hardware controller then 
+just copy and paste the slots, signals, and properties to
+MasterCore so it can be simply used in automations """
 class XWing(QObject):
     
     
@@ -9,7 +11,6 @@ class XWing(QObject):
     yChanged = Signal()
 
     def __init__(self):
-        super().__init__()
         self._x = 0.0
         self._y = 0.0
         self._home_x = 0.0
@@ -19,7 +20,6 @@ class XWing(QObject):
         self.ac = ArduinoClient("COM4", 115200)
         print('all good')
         self.coordinates = []
-        self.cornerstone = Cornerstone
         
 
     # --- X position as a float (if you ever want numeric binding) ---
@@ -109,33 +109,34 @@ class XWing(QObject):
     def recall(self):
         print("Meow")
 
+
 class Cornerstone(QObject):
-    waveChanged =  Signal()
+    waveChanged = Signal()
     shutterChanged = Signal()
     startWavelengthChanged = Signal()
     endWavelengthChanged = Signal()
     numStepsChanged = Signal()
+    
     def __init__(self):
-        super().__init__()
-        self.mono = CornerstoneClient("helpers/cornerstone_helper.exe")
-        self.currentWavelength = self.mono.position()
+        self.mono = CornerstoneClient("LetThereBeBeans/helpers/cornerstone_helper.exe")
+        self.mono.open()
         self.targetWavelength = 630
         self.shutterState = "Closed"
         self.startWavelength = 550
         self.endWavelength = 1000
         self.numSteps = 450
         self.currentGrating = 3
-        print("all good")
-
-
-    @Property(str, notify= waveChanged)
+        self.currentWavelength = 0.0
+        print("Cornerstone online")
+    
+    @Property(str, notify=waveChanged)
     def wavePos(self):
-        return self.currentWavelength
-
-    @Property(str, notify = shutterChanged)
+        return str(self.currentWavelength)
+    
+    @Property(str, notify=shutterChanged)
     def shutterPos(self):
         return self.shutterState
-
+    
     @Property(float, notify=startWavelengthChanged)
     def startWavelengthValue(self):
         return self.startWavelength
@@ -143,6 +144,10 @@ class Cornerstone(QObject):
     @Property(float, notify=endWavelengthChanged)
     def endWavelengthValue(self):
         return self.endWavelength
+    
+    @Property(int, notify=numStepsChanged)
+    def numStepsValue(self):
+        return self.numSteps
     
     @Slot(str)
     def setStartWavelength(self, value_str):
@@ -157,27 +162,153 @@ class Cornerstone(QObject):
         print(self.endWavelength)
     
     @Slot(str)
-    def setWavelength(self, target_Str):
-        self.targetWavelength = float(target_Str)
+    def setNumSteps(self, value_str):
+        self.numSteps = int(value_str)
+        self.numStepsChanged.emit()
+        print(self.numSteps)
+    
+    @Slot(str)
+    def setWavelength(self, target_str):
+        self.targetWavelength = float(target_str)
         self.mono.goto(self.targetWavelength)
-
+        
         while self.mono.position() == -1:
             time.sleep(0.1)
-
+        
         self.currentWavelength = self.mono.position()
         self.waveChanged.emit()
-        print('all good')
-
+        print('Wavelength set')
+    
     @Slot()
     def openShutter(self):
         self.mono.open_shutter()
         print("Shutter opened")
         self.shutterState = "Open"
         self.shutterChanged.emit()
-
+    
     @Slot()
     def closeShutter(self):
         self.mono.close_shutter()
         print("Shutter closed")
         self.shutterState = "Closed"
         self.shutterChanged.emit()
+
+
+class MasterCore(XWing, Cornerstone): # Add new cores here
+    """ Combined class with all cores. """
+    # Re-declare all signals 
+    xChanged = Signal()
+    yChanged = Signal()
+    waveChanged = Signal()
+    shutterChanged = Signal()
+    startWavelengthChanged = Signal()
+    endWavelengthChanged = Signal()
+    numStepsChanged = Signal()
+    
+    def __init__(self): # Initialize new cores here
+        QObject.__init__(self)
+        XWing.__init__(self)
+        Cornerstone.__init__(self)
+        print("MasterCore initialized")
+    
+    # --- X position as a float (if you ever want numeric binding) ---
+    @Property(float, notify=xChanged)
+    def xPos(self):
+        return self._x
+
+    # --- Y position ---
+    @Property(float, notify=yChanged)
+    def yPos(self):
+        return self._y
+
+    # --- String versions for your labels ---
+    @Property(str, notify=xChanged)
+    def xPosString(self):
+        return f"{self._x:.2f}"
+
+    @Property(str, notify=yChanged)
+    def yPosString(self):
+        return f"{self._y:.2f}"
+    
+    # Cornerstone properties
+    @Property(str, notify=waveChanged)
+    def wavePos(self):
+        return str(self.currentWavelength)
+    
+    @Property(str, notify=shutterChanged)
+    def shutterPos(self):
+        return self.shutterState
+    
+    @Property(float, notify=startWavelengthChanged)
+    def startWavelengthValue(self):
+        return self.startWavelength
+    
+    @Property(float, notify=endWavelengthChanged)
+    def endWavelengthValue(self):
+        return self.endWavelength
+    
+    @Property(int, notify=numStepsChanged)
+    def numStepsValue(self):
+        return self.numSteps
+    
+    # --- Movement slots (called from QML) ---
+    @Slot()
+    def moveUp(self):
+        XWing.moveUp(self)
+
+    @Slot()
+    def moveDown(self):
+        XWing.moveDown(self)
+
+    @Slot()
+    def moveRight(self):
+        XWing.moveRight(self)
+
+    @Slot()
+    def moveLeft(self):
+        XWing.moveLeft(self)
+
+    @Slot()
+    def home(self):
+        XWing.home(self)
+
+    @Slot()
+    def setHome(self):
+        XWing.setHome(self)
+
+    @Slot(str, str)
+    def setPosition(self, x_str, y_str):
+        XWing.setPosition(self, x_str, y_str)
+
+    @Slot(float, float)
+    def storeCoordinates(self, x, y):
+        XWing.storeCoordinates(self, x, y)
+
+    @Slot()
+    def recall(self):
+        XWing.recall(self)
+    
+    # Cornerstone slots
+    @Slot(str)
+    def setStartWavelength(self, value_str):
+        Cornerstone.setStartWavelength(self, value_str)
+    
+    @Slot(str)
+    def setEndWavelength(self, value_str):
+        Cornerstone.setEndWavelength(self, value_str)
+    
+    @Slot(str)
+    def setNumSteps(self, value_str):
+        Cornerstone.setNumSteps(self, value_str)
+    
+    @Slot(str)
+    def setWavelength(self, target_str):
+        Cornerstone.setWavelength(self, target_str)
+    
+    @Slot()
+    def openShutter(self):
+        Cornerstone.openShutter(self)
+    
+    @Slot()
+    def closeShutter(self):
+        Cornerstone.closeShutter(self)
