@@ -1,6 +1,8 @@
 from PySide6.QtCore import QObject, Signal, Property, Slot, QThread
 from hardware_controllers import *
-from cores import MasterCore
+from cores import MasterCore, LivePlot
+import os
+import csv
 
 class Worker(QObject):
     """ Object that creates a thread for automation logic then moves logic
@@ -53,7 +55,8 @@ class HyperSpectral(MasterCore):
 
     def __init__(self):
         super().__init__()
-
+        self.digi = NIScopeClient() # Including digitizer here since we don't have a core for it yet
+        self.plotter = LivePlot()
         self.worker = None
 
     @Slot()
@@ -77,22 +80,39 @@ class HyperSpectral(MasterCore):
         interact with the GUI and is stricly backend. """
         step_size = (self.endWavelength - self.startWavelength) / (self.numSteps - 1)
         self.mono.open_shutter()
-        
-        for i in range(len(self.coordinates)): # How the stop button actually stops the automation
-            if not self.worker._is_running:
+        data = []
+
+        # Select save location
+        output_dir = getattr(self, 'save_directory', 'scan_data')
+        os.makedirs(output_dir, exist_ok=True)
+        csv_filename = os.path.join(output_dir, f'scan.csv')
+
+        for i in range(len(self.coordinates)): # Goes through stored positions
+            if not self.worker._is_running: # How the stop button actually stops the automation
                 break
                 
             x, y = self.coordinates[i] # Gets coordinates that are stored from X-Wing
             self.ac.commandSend(f"G1 X{x} Y{y} F{self.rate}") # Going to the coordinates
-            time.sleep(2)
+            time.sleep(4)
+
+            self.plotter.resetPlot()
+
             for j in range(self.numSteps): # Scans through the wavelengths for a given point on the sample
                 if not self.worker._is_running: # Again, for the stop button
                     break
                     
                 wavelength = self.startWavelength + j * step_size
                 self.mono.goto(wavelength)
-                time.sleep(0.5)
+                time.sleep(2)
                 
+                dataPoint = self.digi.record() # Take measurement
+                data.append({
+                    'x': x,
+                    'y': y,
+                    'wavelength': wavelength,
+                    'intensity': dataPoint
+                    })
+
                 # Update UI
                 self._x = x
                 self._y = y
@@ -100,8 +120,15 @@ class HyperSpectral(MasterCore):
                 self.xChanged.emit()
                 self.yChanged.emit()
                 self.waveChanged.emit()
+
+                self.plotter.updatePlot(wavelength, dataPoint)
+
+            # Saves to csv at every position incase of error
+            with open(csv_filename, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=['x', 'y', 'wavelength', 'intensity'])
+                writer.writeheader()
+                writer.writerows(data)
                 
-                time.sleep(2)
         self.mono.close_shutter()
         print("Dunzo bununzo!")
     

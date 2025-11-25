@@ -1,5 +1,8 @@
 from PySide6.QtCore import QObject, Signal, Property, Slot
+from PySide6.QtWidgets import QFileDialog
 from hardware_controllers import *
+import pyqtgraph as pg
+
 
 """ Create QObject classes for each hardware controller then 
 just copy and paste the slots, signals, and properties to
@@ -18,7 +21,6 @@ class XWing(QObject):
         self._step = 1.0  # mm per button press (change as needed)
         self.rate = 50
         self.ac = ArduinoClient("COM4", 115200)
-        print('all good')
         self.coordinates = []
         
 
@@ -109,7 +111,6 @@ class XWing(QObject):
     def recall(self):
         print("Meow")
 
-
 class Cornerstone(QObject):
     waveChanged = Signal()
     shutterChanged = Signal()
@@ -127,7 +128,6 @@ class Cornerstone(QObject):
         self.numSteps = 450
         self.currentGrating = 3
         self.currentWavelength = 0.0
-        print("Cornerstone online")
     
     @Property(str, notify=waveChanged)
     def wavePos(self):
@@ -193,6 +193,39 @@ class Cornerstone(QObject):
         self.shutterState = "Closed"
         self.shutterChanged.emit()
 
+class LivePlot(QObject):
+    """ Creates a window with live plot """
+    
+    def __init__(self):
+        
+        # Create plot window
+        self.plot_window = pg.plot(title=" Live Plot ")
+        self.plot_window.setLabel('left', 'Counts')
+        self.plot_window.setLabel('bottom', 'Wavelength', units='nm')
+        self.plot_window.showGrid(x=True, y=True)
+        self.plot_curve = self.plot_window.plot(pen='y')
+        
+        # Current position data
+        self.wavelengths = []
+        self.measurements = []
+    
+    def resetPlot(self):
+        """Reset plot"""
+        self.wavelengths = []
+        self.measurements = []
+        self.plot_curve.setData([], [])
+    
+    def updatePlot(self, wavelength, measurement):
+        """Add a data point and update plot"""
+        self.wavelengths.append(wavelength)
+        self.measurements.append(measurement)
+        self.plot_curve.setData(self.wavelengths, self.measurements)
+        pg.QtWidgets.QApplication.processEvents()  # Force GUI update
+    
+    def closeClose(self):
+        """Close the plot window"""
+        if self.plot_window:
+            self.plot_window.close()
 
 class MasterCore(XWing, Cornerstone): # Add new cores here
     """ Combined class with all cores. """
@@ -209,8 +242,8 @@ class MasterCore(XWing, Cornerstone): # Add new cores here
         QObject.__init__(self)
         XWing.__init__(self)
         Cornerstone.__init__(self)
-        print("MasterCore initialized")
-    
+        print("MasterCore online")
+
     # --- X position as a float (if you ever want numeric binding) ---
     @Property(float, notify=xChanged)
     def xPos(self):
@@ -312,3 +345,9 @@ class MasterCore(XWing, Cornerstone): # Add new cores here
     @Slot()
     def closeShutter(self):
         Cornerstone.closeShutter(self)
+
+    @Slot(str)
+    def setSaveLocation(self, path):
+        """Receive the selected path from QML"""
+        self.save_directory = path
+        print(f"Save location set to: {path}")

@@ -49,7 +49,6 @@ class ArduinoClient:
 
         self.devPort = serial.Serial(serPort, baud_rate)
         time.sleep(2)
-        print('all good')
 
     def serialRead(self):
 
@@ -203,7 +202,7 @@ class TH260Client:
         self.proc.close()
 
 class NIScopeClient:
-    def record():
+    def record(self):
         with niscope.Session("Dev1") as session:
             session.channels[1].configure_vertical(range=40.0, coupling=niscope.VerticalCoupling.DC)
 
@@ -227,7 +226,6 @@ class NIScopeClient:
                 data_store.append(wfm.samples[i])
 
             data_point = np.average(data_store)
-            print(data_point)
 
             return data_point
 

@@ -17,10 +17,22 @@ ApplicationWindow {
             source: "XWingController.qml"
         }
         
-        Loader {
+        Column {
             width: 400
-            height: 300
-            source: "CornerstoneController.qml"
+            height: 350
+            spacing: 0
+            
+            Loader {
+                width: 400
+                height: 300
+                source: "CornerstoneController.qml"
+            }
+            
+            Loader {
+                width: 400
+                height: 50
+                source: "FileSaveSelector.qml"
+            }
         }
     }
 }
