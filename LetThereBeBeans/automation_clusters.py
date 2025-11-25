@@ -66,7 +66,7 @@ class HyperSpectral(MasterCore):
         as a stand in until we make a gui for starting the automation """
 
         # Make sure we can't run a scan if one is already going
-        if self.worker is not None and self.worker.isRunning():
+        if self.worker is not None and self.worker._is_running():
             print("Hold ur horses...")
             return
         

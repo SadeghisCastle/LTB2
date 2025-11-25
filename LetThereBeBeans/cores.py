@@ -18,7 +18,7 @@ class XWing(QObject):
         self._y = 0.0
         self._home_x = 0.0
         self._home_y = 0.0
-        self._step = 1.0  # mm per button press (change as needed)
+        self._step = 0.1  # mm per button press (change as needed)
         self.rate = 50
         self.ac = ArduinoClient("COM4", 115200)
         self.coordinates = []
@@ -107,10 +107,6 @@ class XWing(QObject):
         self.coordinates.append((self._x,self._y))
         print(self.coordinates)
 
-    @Slot()
-    def recall(self):
-        print("Meow")
-
 class Cornerstone(QObject):
     waveChanged = Signal()
     shutterChanged = Signal()
@@ -171,9 +167,6 @@ class Cornerstone(QObject):
     def setWavelength(self, target_str):
         self.targetWavelength = float(target_str)
         self.mono.goto(self.targetWavelength)
-        
-        while self.mono.position() == -1:
-            time.sleep(0.1)
         
         self.currentWavelength = self.mono.position()
         self.waveChanged.emit()
