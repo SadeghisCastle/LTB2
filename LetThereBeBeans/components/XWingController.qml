@@ -9,17 +9,7 @@ Rectangle {
     radius: 5
     border.width: 2
     
-    Rectangle {
-        id: rectangle10
-        x: 73
-        y: 86
-        width: 56
-        height: 40
-        color: "#00ffdf"
-        border.width: 2
-        topRightRadius: 10
-        topLeftRadius: 10
-    }
+    
 
     Button {
         id: moveUp
@@ -28,21 +18,24 @@ Rectangle {
         width: 55
         height: 40
         text: qsTr("Up")
-        font.family: "Arial"
+        font.family: "Consolas"
         icon.color: "#b23a3a"
         onClicked: XWingBackend.moveUp()
+        background: Rectangle {
+            id: rectangle10
+            x: 0
+            y: 0
+            width: 56
+            height: 40
+            color: "#00ffdf"
+            border.width: 2
+            topRightRadius: 10
+            topLeftRadius: 10
+        }
     }
     
 
-    Rectangle {
-        id: rectangle11
-        x: 73
-        y: 132
-        width: 56
-        height: 40
-        color: "#00ffdf"
-        border.width: 2
-    }
+    
 
     Button {
         id: moveDown
@@ -51,22 +44,21 @@ Rectangle {
         width: 55
         height: 40
         text: qsTr("Down")
-        font.family: "Arial"
+        font.family: "Consolas"
         onClicked: XWingBackend.moveDown()
+        background: Rectangle {
+            id: rectangle11
+            x: 0
+            y: 0
+            width: 56
+            height: 40
+            color: "#00ffdf"
+            border.width: 2
+        }
     }
     
 
-    Rectangle {
-        id: rectangle12
-        x: 135
-        y: 132
-        width: 56
-        height: 40
-        color: "#ff563e"
-        border.width: 2
-        topRightRadius: 10
-        bottomRightRadius: 10
-    }
+    
 
     Button {
         id: moveRight
@@ -75,22 +67,23 @@ Rectangle {
         width: 55
         height: 40
         text: qsTr("Right")
-        font.family: "Arial"
+        font.family: "Consolas"
         onClicked: XWingBackend.moveRight()
+        background: Rectangle {
+            id: rectangle12
+            x: 0
+            y: 0
+            width: 56
+            height: 40
+            color: "#ff563e"
+            border.width: 2
+            topRightRadius: 10
+            bottomRightRadius: 10
+        }
     }
     
 
-    Rectangle {
-        id: rectangle13
-        x: 12
-        y: 132
-        width: 56
-        height: 40
-        color: "#ff563e"
-        border.width: 2
-        topLeftRadius: 10
-        bottomLeftRadius: 10
-    }
+    
 
     Button {
         id: moveLeft
@@ -99,8 +92,20 @@ Rectangle {
         width: 55
         height: 40
         text: qsTr("Left")
-        font.family: "Arial"
+        font.family: "Consolas"
         onClicked: XWingBackend.moveLeft()
+        background: Rectangle {
+            id: rectangle13
+            x: 0
+            y: 0
+            width: 56
+            height: 40
+            color: "#ff563e"
+            border.width: 2
+            topLeftRadius: 10
+            bottomLeftRadius: 10
+        }
+
     }
     
 
@@ -136,7 +141,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             font.pointSize: 20
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
             scale: 0.9
         }
 
@@ -147,7 +152,7 @@ Rectangle {
             y: 48
             text: qsTr("X (mm)")
             font.wordSpacing: -0.5
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
             font.pointSize: 17
         }
 
@@ -186,7 +191,7 @@ Rectangle {
             text: XWingBackend.yPosString
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
             font.pointSize: 21
             scale: 0.9
         }
@@ -199,7 +204,7 @@ Rectangle {
             text: qsTr("Y (mm)")
             font.wordSpacing: -0.5
             font.pointSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
     }
@@ -223,7 +228,7 @@ Rectangle {
         height: 18
         text: qsTr("Home")
         icon.color: "#00000000"
-        font.family: "Arial"
+        font.family: "Consolas"
         font.pointSize: 7
         onClicked: XWingBackend.home()
     }
@@ -263,7 +268,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             font.wordSpacing: -0.7
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
         
 
@@ -281,7 +286,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             font.wordSpacing: -0.8
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
         
 
@@ -310,7 +315,7 @@ Rectangle {
             font.pixelSize: 17
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
         
 
@@ -328,7 +333,7 @@ Rectangle {
             font.pixelSize: 17
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
         
 
@@ -356,7 +361,7 @@ Rectangle {
             width: 76
             height: 20
             text: qsTr("Go!")
-            font.family: "Arial"
+            font.family: "Consolas"
             onClicked: XWingBackend.setPosition(xSetPosition.text, ySetPosition.text)
         }
         
@@ -369,7 +374,7 @@ Rectangle {
             color: "#ff6d00"
             text: qsTr("Position Memory")
             font.pixelSize: 18
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         Rectangle {
@@ -389,7 +394,7 @@ Rectangle {
             width: 57
             height: 18
             text: qsTr("Set Home")
-            font.family: "Arial"
+            font.family: "Consolas"
             font.pointSize: 7
             onClicked: XWingBackend.setHome()
         }
@@ -416,7 +421,7 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("1")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         RadioButton {
@@ -532,7 +537,7 @@ Rectangle {
             width: 41
             height: 18
             text: qsTr("Store")
-            font.family: "Arial"
+            font.family: "Consolas"
             font.pointSize: 7
             onClicked: XWingBackend.storeCoordinates(x, y)
 
@@ -555,7 +560,7 @@ Rectangle {
             width: 57
             height: 18
             text: qsTr("Recall")
-            font.family: "Arial"
+            font.family: "Consolas"
             font.pointSize: 7
             onClicked: XWingBackend.recall()
         }
@@ -567,7 +572,7 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("2")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         Text {
@@ -579,7 +584,7 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("3")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         Text {
@@ -591,7 +596,7 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("4")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         Text {
@@ -603,7 +608,7 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("5")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         Text {
@@ -615,7 +620,7 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("6")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         Text {
@@ -627,7 +632,7 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("7")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
         Text {
@@ -639,21 +644,10 @@ Rectangle {
             color: "#ffffff"
             text: qsTr("8")
             font.pixelSize: 17
-            font.family: "OCR A"
+            font.family: "Cascadia Mono"
         }
 
 
-
-
-
-
-
-
-
     }
-
-
-
-
 
 }

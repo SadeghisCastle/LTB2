@@ -5,13 +5,17 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import QUrl
-
+from PySide6 import QtGui
 from automation_clusters import HyperSpectral, QuickScanAutomation
 from pretend_cores import XWing, Cornerstone
 
 
 
 def main():
+    # importing fonts
+
+
+
     # Creating app
     app = QApplication(sys.argv)
     engine = QQmlApplicationEngine()
