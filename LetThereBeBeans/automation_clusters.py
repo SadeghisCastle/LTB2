@@ -139,5 +139,16 @@ class HyperSpectral(MasterCore):
             self.worker.stop()
             print("Stopping scan...")
 
-
+class QuickScanAutomation(QObject):
+    """Different automation using same cores"""
+    
+    def __init__(self, xwing, cornerstone):
+        super().__init__()
+        self.xwing = xwing
+        self.cornerstone = cornerstone
+    
+    @Slot()
+    def quickScan(self):
+        # Different automation logic using same cores
+        pass
     

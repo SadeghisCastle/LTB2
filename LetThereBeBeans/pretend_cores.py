@@ -1,31 +1,31 @@
 from PySide6.QtCore import QObject, Signal, Property, Slot
-from hardware_controllers import *
+import time
 
 class XWing(QObject):
-
+    
     xChanged = Signal()
     yChanged = Signal()
 
     def __init__(self):
-        super().__init__()
+        super().__init__()  # Add this
         self._x = 0.0
         self._y = 0.0
         self._home_x = 0.0
         self._home_y = 0.0
-        self._step = 1.0  # mm per button press (change as needed)
+        self._step = 1.0
+        self.rate = 50  # Add this
+        # self.ac = ArduinoClient("COM4", 115200)  # Commented out for pretend
         self.coordinates = []
+        print("XWing (pretend) initialized")
 
-    # --- X position as a float (if you ever want numeric binding) ---
     @Property(float, notify=xChanged)
     def xPos(self):
         return self._x
 
-    # --- Y position ---
     @Property(float, notify=yChanged)
     def yPos(self):
         return self._y
 
-    # --- String versions for your labels ---
     @Property(str, notify=xChanged)
     def xPosString(self):
         return f"{self._x:.2f}"
@@ -34,33 +34,37 @@ class XWing(QObject):
     def yPosString(self):
         return f"{self._y:.2f}"
 
-    # --- Movement slots (called from QML) ---
     @Slot()
     def moveUp(self):
         self._y += self._step
+        # self.ac.commandSend(f"G1 Y{self._y} F{self.rate}")  # Pretend - no hardware
         print("Move Up ->", self._y)
         self.yChanged.emit()
 
     @Slot()
     def moveDown(self):
         self._y -= self._step
+        # self.ac.commandSend(f"G1 Y{self._y} F{self.rate}")  # Pretend - no hardware
         print("Move Down ->", self._y)
         self.yChanged.emit()
 
     @Slot()
     def moveRight(self):
         self._x += self._step
+        # self.ac.commandSend(f"G1 X{self._x} F{self.rate}")  # Pretend - no hardware
         print("Move Right ->", self._x)
         self.xChanged.emit()
 
     @Slot()
     def moveLeft(self):
         self._x -= self._step
+        # self.ac.commandSend(f"G1 X{self._x} F{self.rate}")  # Pretend - no hardware
         print("Move Left ->", self._x)
         self.xChanged.emit()
 
     @Slot()
     def home(self):
+        # self.ac.commandSend(f"G1 X{0} Y{0} F{self.rate}")  # Pretend - no hardware
         self._x = self._home_x
         self._y = self._home_y
         print("Go Home ->", self._x, self._y)
@@ -75,6 +79,7 @@ class XWing(QObject):
 
     @Slot(str, str)
     def setPosition(self, x_str, y_str):
+        # self.ac.commandSend(f"G1 X{x_str} Y{y_str} F{self.rate}")  # Pretend - no hardware
         try:
             if x_str.strip():
                 self._x = float(x_str)
@@ -88,7 +93,8 @@ class XWing(QObject):
 
     @Slot(float, float)
     def storeCoordinates(self, x, y):
-        self.coordinates.append((self._x,self._y))
+        self.coordinates.append((self._x, self._y))
+        print(self.coordinates)
 
     @Slot()
     def recall(self):
@@ -97,32 +103,34 @@ class XWing(QObject):
             self._y = self.coordinates[i][1]
             print(self._x, self._y)
             time.sleep(2)
+            self.xChanged.emit()
+            self.yChanged.emit()
+
 
 class Cornerstone(QObject):
-    waveChanged =  Signal()
+    waveChanged = Signal()
     shutterChanged = Signal()
     startWavelengthChanged = Signal()
     endWavelengthChanged = Signal()
     numStepsChanged = Signal()
 
     def __init__(self):
-        super().__init__()
-        #self.mono = CornerstoneClient("helpers/cornerstone_helper.exe")
-        self.currentWavelength = 10
+        super().__init__()  # Add this
+        # self.mono = CornerstoneClient("helpers/cornerstone_helper.exe")  # Commented for pretend
+        self.currentWavelength = 10.0  # Change to float
         self.targetWavelength = 630
-        self.shutterState = "Open"
-        self.startWavelength = 550
-        self.endWavelength = 1000
+        self.shutterState = "Closed"  # Match real version
+        self.startWavelength = 550.0
+        self.endWavelength = 1000.0
         self.numSteps = 450
         self.currentGrating = 2
-        print("all good")
+        print("Cornerstone (pretend) initialized")
 
-
-    @Property(str, notify= waveChanged)
+    @Property(str, notify=waveChanged)
     def wavePos(self):
-        return self.currentWavelength
+        return f"{self.currentWavelength:.2f}"  # Fix: format as string
 
-    @Property(str, notify = shutterChanged)
+    @Property(str, notify=shutterChanged)
     def shutterPos(self):
         return self.shutterState
 
@@ -157,23 +165,23 @@ class Cornerstone(QObject):
         print(self.endWavelength)
     
     @Slot(str)
-    def setWavelength(self, target_Str):
-        self.targetWavelength = float(target_Str)
-        self.currentWavelength = target_Str
-        #self.mono.goto(targetWavelength)
+    def setWavelength(self, target_str):
+        self.targetWavelength = float(target_str)
+        self.currentWavelength = float(target_str)  # Fix: convert to float
+        # self.mono.goto(self.targetWavelength)  # Pretend - no hardware
         self.waveChanged.emit()
-        print('all good')
+        print('Wavelength set to', self.currentWavelength)
 
     @Slot()
     def openShutter(self):
-        #self.mono.open_shutter()
+        # self.mono.open_shutter()  # Pretend - no hardware
         print("Shutter opened")
         self.shutterState = "Open"
         self.shutterChanged.emit()
 
     @Slot()
     def closeShutter(self):
-        #self.mono.close_shutter()
+        # self.mono.close_shutter()  # Pretend - no hardware
         print("Shutter closed")
         self.shutterState = "Closed"
         self.shutterChanged.emit()
