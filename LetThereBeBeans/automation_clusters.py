@@ -3,6 +3,9 @@ from hardware_controllers import *
 from cores import MasterCore, LivePlot
 import os
 import csv
+import niscope
+import numpy as np
+import pyqtgraph as pg
 
 class Worker(QObject):
     """ Object that creates a thread for automation logic then moves logic
@@ -138,6 +141,109 @@ class HyperSpectral(MasterCore):
         if self.worker:
             self.worker.stop()
             print("Stopping scan...")
+
+class Oscilloscope(QObject):
+    """Live oscilloscope waveform viewer"""
+    
+    def __init__(self):
+        super().__init__()
+        
+        self.digi = NIScopeClient()
+        
+        # Create plot window
+        self.plot_window = pg.plot(title="Oscilloscope")
+        self.plot_window.setLabel('left', 'Voltage', units='V')
+        self.plot_window.setLabel('bottom', 'Sample')
+        self.plot_window.showGrid(x=True, y=True)
+        self.plot_curve = self.plot_window.plot(pen='y')
+        
+        self.is_viewing = False
+        self.viewer_worker = None
+        
+        print("Oscilloscope initialized")
+    
+    @Slot()
+    def startLiveView(self):
+        """Start continuous live viewing"""
+        if self.is_viewing:
+            print("Already viewing")
+            return
+        
+        self.is_viewing = True
+        self.viewer_worker = Worker(self._liveViewLoop)
+        self.viewer_worker.start()
+        print("Live view started")
+    
+    def _liveViewLoop(self):
+        """Continuously capture and display waveforms"""
+        while self.viewer_worker._is_running and self.is_viewing:
+            try:
+                # Capture waveform
+                with niscope.Session("Dev1") as session:
+                    session.channels[1].configure_vertical(range=40.0, coupling=niscope.VerticalCoupling.DC)
+                    session.configure_horizontal_timing(
+                        min_sample_rate=5000000,
+                        min_num_pts=5000000,
+                        ref_position=50.0,
+                        num_records=1,
+                        enforce_realtime=True
+                    )
+                
+                    with session.initiate():
+                        waveforms = session.channels[1].fetch()
+                
+                wfm = waveforms[0]
+                samples = np.array(wfm.samples)
+                
+                # Update plot (PyQtGraph is thread-safe for this)
+                self.plot_curve.setData(samples)
+                
+            except Exception as e:
+                print(f"Error in live view: {e}")
+                break
+        
+        print("Live view stopped")
+    
+    @Slot()
+    def stopLiveView(self):
+        """Stop live viewing"""
+        self.is_viewing = False
+        if self.viewer_worker:
+            self.viewer_worker.stop()
+        print("Stopping live view...")
+    
+    @Slot()
+    def captureSingle(self):
+        """Capture and display a single waveform"""
+        try:
+            with niscope.Session("Dev1") as session:
+                session.channels[1].configure_vertical(range=40.0, coupling=niscope.VerticalCoupling.DC)
+                session.configure_horizontal_timing(
+                    min_sample_rate=5000000,
+                    min_num_pts=5000000,
+                    ref_position=50.0,
+                    num_records=1,
+                    enforce_realtime=True
+                )
+            
+                with session.initiate():
+                    waveforms = session.channels[1].fetch()
+            
+            wfm = waveforms[0]
+            samples = np.array(wfm.samples)
+            
+            # Update plot
+            self.plot_curve.setData(samples)
+            print(f"Captured {len(samples)} samples")
+            
+        except Exception as e:
+            print(f"Error capturing: {e}")
+    
+    def closePlot(self):
+        """Close the plot window"""
+        self.stopLiveView()
+        if self.plot_window:
+            self.plot_window.close()
 
 class QuickScanAutomation(QObject):
     """Different automation using same cores"""

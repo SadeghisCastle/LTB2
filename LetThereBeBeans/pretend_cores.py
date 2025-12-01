@@ -1,5 +1,7 @@
-from PySide6.QtCore import QObject, Signal, Property, Slot
+from PySide6.QtCore import QObject, Signal, Property, Slot, QThread
 import time
+import numpy as np
+import pyqtgraph as pg
 
 class XWing(QObject):
     
@@ -16,7 +18,7 @@ class XWing(QObject):
         self.rate = 50  # Add this
         # self.ac = ArduinoClient("COM4", 115200)  # Commented out for pretend
         self.coordinates = []
-        print("XWing (pretend) initialized")
+        print("XWing (pretend) online")
 
     @Property(float, notify=xChanged)
     def xPos(self):
@@ -106,7 +108,6 @@ class XWing(QObject):
             self.xChanged.emit()
             self.yChanged.emit()
 
-
 class Cornerstone(QObject):
     waveChanged = Signal()
     shutterChanged = Signal()
@@ -124,7 +125,7 @@ class Cornerstone(QObject):
         self.endWavelength = 1000.0
         self.numSteps = 450
         self.currentGrating = 2
-        print("Cornerstone (pretend) initialized")
+        print("Cornerstone (pretend) online")
 
     @Property(str, notify=waveChanged)
     def wavePos(self):
@@ -185,3 +186,94 @@ class Cornerstone(QObject):
         print("Shutter closed")
         self.shutterState = "Closed"
         self.shutterChanged.emit()
+
+class Oscilloscope(QObject):
+    """Pretend oscilloscope for testing - generates fake waveforms"""
+    
+    def __init__(self):
+        super().__init__()
+        
+        # Create plot window
+        self.plot_window = pg.plot(title="Oscilloscope (Pretend)")
+        self.plot_window.setLabel('left', 'Voltage', units='V')
+        self.plot_window.setLabel('bottom', 'Sample')
+        self.plot_window.showGrid(x=True, y=True)
+        self.plot_curve = self.plot_window.plot(pen='y')
+        
+        self.is_viewing = False
+        self.viewer_worker = None
+        
+        print("Oscilloscope (pretend) online")
+    
+    @Slot()
+    def startLiveView(self):
+        """Start continuous live viewing with fake data"""
+        if self.is_viewing:
+            print("Already viewing")
+            return
+        
+        self.is_viewing = True
+        from automation_clusters import Worker  # Import your Worker class
+        self.viewer_worker = Worker(self._liveViewLoop)
+        self.viewer_worker.start()
+        print("Live view started (pretend)")
+    
+    def _liveViewLoop(self):
+        """Continuously generate and display fake waveforms"""
+        while self.viewer_worker._is_running and self.is_viewing:
+            try:
+                # Generate fake waveform data
+                num_samples = 5000
+                t = np.linspace(0, 1, num_samples)
+                
+                # Sine wave with some noise
+                frequency = 5 + np.random.random() * 5  # Random frequency 5-10 Hz
+                amplitude = 1 + np.random.random() * 2   # Random amplitude 1-3 V
+                noise = np.random.normal(0, 0.1, num_samples)
+                samples = amplitude * np.sin(2 * np.pi * frequency * t) + noise
+                
+                # Update plot
+                self.plot_curve.setData(samples)
+                
+                time.sleep(0.1)  # Update rate ~10 Hz
+                
+            except Exception as e:
+                print(f"Error in live view: {e}")
+                break
+        
+        print("Live view stopped (pretend)")
+    
+    @Slot()
+    def stopLiveView(self):
+        """Stop live viewing"""
+        self.is_viewing = False
+        if self.viewer_worker:
+            self.viewer_worker.stop()
+        print("Stopping live view... (pretend)")
+    
+    @Slot()
+    def captureSingle(self):
+        """Capture and display a single fake waveform"""
+        try:
+            # Generate fake waveform data
+            num_samples = 5000
+            t = np.linspace(0, 1, num_samples)
+            
+            # Sine wave with noise
+            frequency = 7
+            amplitude = 2
+            noise = np.random.normal(0, 0.1, num_samples)
+            samples = amplitude * np.sin(2 * np.pi * frequency * t) + noise
+            
+            # Update plot
+            self.plot_curve.setData(samples)
+            print(f"Captured {len(samples)} samples (pretend)")
+            
+        except Exception as e:
+            print(f"Error capturing: {e}")
+    
+    def closePlot(self):
+        """Close the plot window"""
+        self.stopLiveView()
+        if self.plot_window:
+            self.plot_window.close()

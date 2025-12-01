@@ -22,6 +22,7 @@ class XWing(QObject):
         self.rate = 50
         self.ac = ArduinoClient("COM4", 115200)
         self.coordinates = []
+        print("XWing online")
         
 
     # --- X position as a float (if you ever want numeric binding) ---
@@ -124,6 +125,7 @@ class Cornerstone(QObject):
         self.numSteps = 450
         self.currentGrating = 3
         self.currentWavelength = 0.0
+        print("Cornerstone online")
     
     @Property(str, notify=waveChanged)
     def wavePos(self):
@@ -219,6 +221,7 @@ class LivePlot(QObject):
         """Close the plot window"""
         if self.plot_window:
             self.plot_window.close()
+
 
 class MasterCore(XWing, Cornerstone): # Add new cores here
     """ Combined class with all cores. """

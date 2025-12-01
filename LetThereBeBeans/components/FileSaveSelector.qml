@@ -52,13 +52,14 @@ Rectangle {
     FolderDialog {
         id: folderDialog
         title: "Select Save Location"
-        currentFolder: StandardPaths.standardLocations(StandardPaths.DocumentsLocation)[0]
+        // Remove the currentFolder line that used StandardPaths
         
         onAccepted: {
             var path = folderDialog.selectedFolder.toString()
             // Remove file:/// prefix
             path = path.replace(/^(file:\/{2,3})/, "")
-            MasterCoreBackend.setSaveLocation(path)
+            AutomationBackend.setSaveLocation(path)
+            console.log("Save location set to:", path)
         }
     }
 }
