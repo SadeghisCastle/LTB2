@@ -74,7 +74,7 @@ ApplicationWindow {
                             anchors.fill: parent
                             text: "Start Scan"
                             font.pixelSize: 9
-                            onClicked: AutomationBackend.recall()
+                            onClicked: AutomationBackend.threading()
                         }
                     }
                     

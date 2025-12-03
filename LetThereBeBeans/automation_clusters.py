@@ -1,4 +1,4 @@
-from PySide6.QtCore import QObject, Signal, Property, Slot, QThread
+﻿from PySide6.QtCore import QObject, Signal, Property, Slot, QThread
 from hardware_controllers import *
 from cores import MasterCore, LivePlot
 import os
@@ -6,6 +6,8 @@ import csv
 import niscope
 import numpy as np
 import pyqtgraph as pg
+import time
+from datetime import datetime
 
 class Worker(QObject):
     """ Object that creates a thread for automation logic then moves logic
@@ -51,96 +53,137 @@ class Worker(QObject):
         """ Checks if thread is still running """
         return self.thread is not None and self.thread.isRunning()
 
-class HyperSpectral(MasterCore):
-    """ First automation. We can create the required objects from cores.py and 
-    use them in this new object. We aren't using functions from them, but when the code executes a command, 
-    it will search through the objects that we initialize until it finds one that fits. """
-
-    def __init__(self):
+class HyperSpectral(QObject):
+    """ 
+    Hyperspectral scanning automation.
+    Coordinates XWing and Cornerstone cores to scan wavelengths at stored positions.
+    """
+    
+    def __init__(self, xwing, cornerstone):
         super().__init__()
-        self.digi = NIScopeClient() # Including digitizer here since we don't have a core for it yet
-        self.plotter = LivePlot()
+        # Store references to cores
+        self.xwing = xwing
+        self.cornerstone = cornerstone
+        
+        # Add automation-specific hardware
+        self.digi = NIScopeClient()
+        self.plotter = None  # Create when needed
         self.worker = None
-
+        
+        print("HyperSpectral automation ready")
+    
     @Slot()
     def recall(self):
-        # Can use this for future automations!!!!!!!
-        """ Function that ties the button to the automation logic. Using the recall button
-        as a stand in until we make a gui for starting the automation """
-
+        """
+        Start the hyperspectral scan automation.
+        Tied to the recall button - will be replaced with dedicated automation GUI later.
+        """
         # Make sure we can't run a scan if one is already going
-        if self.worker is not None and self.worker._is_running():
+        if self.worker is not None and self.worker.is_running():
             print("Hold ur horses...")
             return
         
-        # Create the object that will run the automation on a different thread
+        # Create plotter if needed
+        if self.plotter is None:
+            self.plotter = LivePlot()
+        
+        # Create the worker that will run the automation on a different thread
         self.worker = Worker(self._runScan)
         self.worker.start()
         print("Scan started")
     
+    @Slot()
+    def stopScan(self):
+        """Stop the current scan"""
+        if self.worker:
+            self.worker.stop()
+            print("Stopping scan...")
+    
     def _runScan(self):
-        """ Automation logic. The underscore is to denote that it doesn't 
-        interact with the GUI and is stricly backend. """
-        step_size = (self.endWavelength - self.startWavelength) / (self.numSteps - 1)
-        self.mono.open_shutter()
-        data = []
-
-        # Select save location
-        output_dir = getattr(self, 'save_directory', 'scan_data')
+        """
+        Automation logic - runs in separate thread.
+        The underscore denotes that it doesn't interact with the GUI directly.
+        """
+        # Create timestamped directory for this scan
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        output_dir = os.path.join("data", timestamp)
         os.makedirs(output_dir, exist_ok=True)
-        csv_filename = os.path.join(output_dir, f'scan.csv')
-
-        for i in range(len(self.coordinates)): # Goes through stored positions
-            if not self.worker._is_running: # How the stop button actually stops the automation
+        csv_filename = os.path.join(output_dir, 'scan.csv')
+        
+        print(f"Saving data to: {output_dir}")
+        
+        # Calculate wavelength step size
+        step_size = (self.cornerstone.endWavelength - self.cornerstone.startWavelength) / (self.cornerstone.numSteps - 1)
+        
+        # Open shutter
+        self.cornerstone.mono.open_shutter()
+        
+        # Prepare data storage
+        data = []
+        
+        # Loop through stored positions
+        for i in range(len(self.xwing.coordinates)):
+            if not self.worker._is_running:  # Check stop button
                 break
-                
-            x, y = self.coordinates[i] # Gets coordinates that are stored from X-Wing
-            self.ac.commandSend(f"G1 X{x} Y{y} F{self.rate}") # Going to the coordinates
+            
+            # Get coordinates from XWing
+            x, y = self.xwing.coordinates[i]
+            
+            # Move to position
+            self.xwing.ac.commandSend(f"G1 X{x} Y{y} F{self.xwing.rate}")
+            print(f"Position {i+1}/{len(self.xwing.coordinates)}: X={x}, Y={y}")
             time.sleep(4)
-
+            
+            # Reset plot for new position
             self.plotter.resetPlot()
-
-            for j in range(self.numSteps): # Scans through the wavelengths for a given point on the sample
-                if not self.worker._is_running: # Again, for the stop button
+            
+            # Scan through wavelengths at this position
+            for j in range(self.cornerstone.numSteps):
+                if not self.worker._is_running:  # Check stop button
                     break
-                    
-                wavelength = self.startWavelength + j * step_size
-                self.mono.goto(wavelength)
-                time.sleep(2)
                 
-                dataPoint = self.digi.record() # Take measurement
+                # Set wavelength
+                wavelength = self.cornerstone.startWavelength + j * step_size
+                self.cornerstone.mono.goto(wavelength)
+                
+                time.sleep(1)
+                
+                # Take measurement
+                dataPoint = self.digi.record()
+                
+                # Store data
                 data.append({
                     'x': x,
                     'y': y,
                     'wavelength': wavelength,
                     'intensity': dataPoint
-                    })
-
-                # Update UI
-                self._x = x
-                self._y = y
-                self.currentWavelength = wavelength
-                self.xChanged.emit()
-                self.yChanged.emit()
-                self.waveChanged.emit()
-
+                })
+                
+                # Update UI (update core states which triggers GUI updates)
+                self.xwing._x = x
+                self.xwing._y = y
+                self.xwing.xChanged.emit()
+                self.xwing.yChanged.emit()
+                
+                self.cornerstone.currentWavelength = wavelength
+                self.cornerstone.waveChanged.emit()
+                
+                # Update plot
                 self.plotter.updatePlot(wavelength, dataPoint)
-
-            # Saves to csv at every position incase of error
+                
+                print(f"  λ={wavelength:.2f} nm, Intensity={dataPoint}")
+            
+            # Save to CSV after each position (crash-safe)
             with open(csv_filename, 'w', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=['x', 'y', 'wavelength', 'intensity'])
                 writer.writeheader()
                 writer.writerows(data)
-                
-        self.mono.close_shutter()
-        print("Dunzo bununzo!")
-    
-    @Slot()
-    def stopScan(self):
-        """ Function that stops the scan. Don't have a button for it yet though... """
-        if self.worker:
-            self.worker.stop()
-            print("Stopping scan...")
+            
+            print(f"Saved data - {len(data)} measurements")
+        
+        # Close shutter when done
+        self.cornerstone.mono.close_shutter()
+        print(f"Scan complete! Data saved to: {csv_filename}")
 
 class Oscilloscope(QObject):
     """Live oscilloscope waveform viewer"""
@@ -245,16 +288,199 @@ class Oscilloscope(QObject):
         if self.plot_window:
             self.plot_window.close()
 
+class HyperSpectralExtinction(QObject):
+    """Extinction automation using hyperspectral setup"""
+
+    def __init__(self, xwing, cornerstone):
+        super().__init__()
+        self.digi = NIScopeClient()
+        self.plotter = None
+        self.worker = None
+        self.pmt = ArduinoClient("COM9", 115200)
+        self.gain = 0
+        self.pmt.commandSend(f"{self.gain:.3f}")
+        self.xwing = xwing
+        self.cornerstone = cornerstone
+
+        print("Extinction Automation Ready")
+    
+    @Slot()
+    def threading(self):
+        """
+        Start the hyperspectral scan automation.
+        Tied to the recall button - will be replaced with dedicated automation GUI later.
+        """
+        # Make sure we can't run a scan if one is already going
+        if self.worker is not None and self.worker.is_running():
+            print("Hold ur horses...")
+            return
+        
+        # Create plotter if needed
+        if self.plotter is None:
+            self.plotter = LivePlot()
+        
+        # Create the worker that will run the automation on a different thread
+        self.worker = Worker(self._extinction)
+        self.worker.start()
+        print("Scan started")
+    
+    @Slot()
+    def stopScan(self):
+        """Stop the current scan"""
+        if self.worker:
+            self.worker.stop()
+            print("Stopping scan...")
+    
+    def _extinction(self):
+        """
+        Automation logic - runs in separate thread.
+        The underscore denotes that it doesn't interact with the GUI directly.
+        """
+        # Create timestamped directory for this scan
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        output_dir = os.path.join("data", timestamp)
+        os.makedirs(output_dir, exist_ok=True)
+        csv_filename = os.path.join(output_dir, 'scan.csv')
+        
+        print(f"Saving data to: {output_dir}")
+        
+        # Calculate wavelength step size
+        step_size = (self.cornerstone.endWavelength - self.cornerstone.startWavelength) / (self.cornerstone.numSteps - 1)
+        
+        # Open shutter
+        self.cornerstone.mono.open_shutter()
+        
+        # Prepare data storage
+        data = []
+        
+        # Loop through stored positions
+        for i in range(len(self.xwing.coordinates)):
+            if not self.worker._is_running:  # Check stop button
+                break
+            
+            # Get coordinates from XWing
+            x, y = self.xwing.coordinates[i]
+            
+            # Move to position
+            self.xwing.ac.commandSend(f"G1 X{x} Y{y} F{self.xwing.rate}")
+            print(f"Position {i+1}/{len(self.xwing.coordinates)}: X={x}, Y={y}")
+            time.sleep(4)
+            
+            # Reset plot for new position
+            self.plotter.resetPlot()
+            
+            # Scan through wavelengths at this position
+            for j in range(self.cornerstone.numSteps):
+                if not self.worker._is_running:  # Check stop button
+                    break
+                
+                # Set wavelength
+                wavelength = self.cornerstone.startWavelength + j * step_size
+                self.cornerstone.mono.goto(wavelength)
+                
+                time.sleep(1)
+                
+                # Take measurement
+                dataPoint = self.digi.record()
+
+                # Reducing gain to 5 volts if lock in voltage exceeds 10 volts
+                if dataPoint > 10:
+                    while dataPoint > 5:
+                        self.gain = self.gain-0.1
+                        self.pmt.commandSend(f"{self.gain:.3f}")
+                        time.sleep(1)
+                        dataPoint = self.digi.record()
+
+                    self.gain = self.gain+0.1
+                    self.pmt.commandSend(f"{self.gain:.3f}")
+
+                    while dataPoint > 5:
+                        self.gain = self.gain-0.01
+                        self.pmt.commandSend(f"{self.gain:.3f}")
+                        time.sleep(1)
+                        dataPoint = self.digi.record()
+
+                    self.gain = self.gain+0.05
+                    self.pmt.commandSend(f"{self.gain:.3f}")
+                    time.sleep(2)
+
+                if dataPoint < 5 and self.gain < 1:
+                    while dataPoint < 10:
+                        self.gain = self.gain+0.1
+                        self.pmt.commandSend(f"{self.gain:.3f}")
+                        time.sleep(1)
+                        dataPoint = self.digi.record()
+
+                    self.gain = self.gain-0.1
+                    self.pmt.commandSend(f"{self.gain:.3f}")
+
+                    while dataPoint < 10:
+                        self.gain = self.gain+0.01
+                        self.pmt.commandSend(f"{self.gain:.3f}")
+                        time.sleep(1)
+                        dataPoint = self.digi.record()
+
+                    self.gain = self.gain-0.05
+                    self.pmt.commandSend(f"{self.gain:.3f}")
+                
+                # Store data
+                data.append({
+                    'x': x,
+                    'y': y,
+                    'wavelength': wavelength,
+                    'intensity': dataPoint
+                })
+                
+                # Update UI (update core states which triggers GUI updates)
+                self.xwing._x = x
+                self.xwing._y = y
+                self.xwing.xChanged.emit()
+                self.xwing.yChanged.emit()
+                
+                self.cornerstone.currentWavelength = wavelength
+                self.cornerstone.waveChanged.emit()
+                
+                # Update plot
+                self.plotter.updatePlot(wavelength, dataPoint)
+                
+                print(f"  λ={wavelength:.2f} nm, Intensity={dataPoint}")
+            
+            # Save to CSV after each position (crash-safe)
+            with open(csv_filename, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=['x', 'y', 'wavelength', 'intensity'])
+                writer.writeheader()
+                writer.writerows(data)
+            
+            print(f"Saved data - {len(data)} measurements")
+        
+        # Close shutter when done
+        self.cornerstone.mono.close_shutter()
+        print(f"Scan complete! Data saved to: {csv_filename}")
+
 class QuickScanAutomation(QObject):
     """Different automation using same cores"""
     
     def __init__(self, xwing, cornerstone):
         super().__init__()
-        self.xwing = xwing
-        self.cornerstone = cornerstone
+        self.pmt = ArduinoClient("COM9", 115200)
+
+    @Slot()
+    def threading(self):
+        if self.worker is not None and self.worker._is_running():
+            print("Hold ur horses...")
+            return
+        
+        # Create the object that will run the automation on a different thread
+        self.worker = Worker(self._extinction)
+        self.worker.start()
+        print("Scan started")
     
     @Slot()
-    def quickScan(self):
-        # Different automation logic using same cores
-        pass
+    def _extinction(self):
+        voltages = np.linspace(0, 1, 11)
+
+        for i in range(len(voltages)):
+            self.pmt.commandSend(f"{voltages[i]:.3f}")
+            print(voltages[i])
+            time.sleep(1)
     
