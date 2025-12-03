@@ -232,7 +232,7 @@ class HyperSpectralExtinction(QObject):
     def _extinction(self):
         """
         Automation logic - runs in separate thread.
-        Includes automatic gain control to keep detector voltage in optimal range.
+        Includes automatic gain control to keep detector voltage near target.
         """
         # Create timestamped directory for this scan
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -252,10 +252,9 @@ class HyperSpectralExtinction(QObject):
         data = []
     
         # Gain control parameters
-        TARGET_VOLTAGE = 8.0  # Middle of 4-12V range
-        VOLTAGE_MIN = 4.0
-        VOLTAGE_MAX = 12.0
-        MAX_GAIN_ADJUSTMENTS = 20  # Prevent infinite loops
+        TARGET_VOLTAGE = 8.0  # Target voltage
+        VOLTAGE_TOLERANCE = 0.5  # Acceptable range: 7.5V - 8.5V
+        MAX_GAIN_ADJUSTMENTS = 30  # Prevent infinite loops
     
         # Loop through stored positions
         for i in range(len(self.xwing.coordinates)):
@@ -288,33 +287,45 @@ class HyperSpectralExtinction(QObject):
             
                 time.sleep(1)
             
-                # Automatic gain control
+                # Automatic gain control - converge to target voltage
                 dataPoint = self.digi.record()
                 adjustment_count = 0
             
-                while (dataPoint < VOLTAGE_MIN or dataPoint > VOLTAGE_MAX) and adjustment_count < MAX_GAIN_ADJUSTMENTS:
-                    if dataPoint > VOLTAGE_MAX:
+                # Keep adjusting until within tolerance of target
+                while abs(dataPoint - TARGET_VOLTAGE) > VOLTAGE_TOLERANCE and adjustment_count < MAX_GAIN_ADJUSTMENTS:
+                    voltage_error = dataPoint - TARGET_VOLTAGE
+                
+                    # Determine step size based on how far we are from target
+                    if abs(voltage_error) > 4:
+                        step = 0.2  # Large steps when far away
+                    elif abs(voltage_error) > 2:
+                        step = 0.1  # Medium steps
+                    elif abs(voltage_error) > 1:
+                        step = 0.05  # Small steps
+                    else:
+                        step = 0.01  # Fine adjustment
+                
+                    if voltage_error > 0:
                         # Voltage too high - reduce gain
-                        step = 0.1 if abs(dataPoint - TARGET_VOLTAGE) > 2 else 0.01
                         self.gain -= step
-                        print(f"    Voltage {dataPoint:.2f}V too high, reducing gain to {self.gain:.3f}")
-                    
-                    elif dataPoint < VOLTAGE_MIN:
+                        print(f"    Voltage {dataPoint:.2f}V (target {TARGET_VOLTAGE:.1f}V), reducing gain to {self.gain:.3f}")
+                    else:
                         # Voltage too low - increase gain
-                        step = 0.1 if abs(dataPoint - TARGET_VOLTAGE) > 2 else 0.01
                         self.gain += step
-                        print(f"    Voltage {dataPoint:.2f}V too low, increasing gain to {self.gain:.3f}")
+                        print(f"    Voltage {dataPoint:.2f}V (target {TARGET_VOLTAGE:.1f}V), increasing gain to {self.gain:.3f}")
                 
                     # Apply new gain
                     self.pmt.commandSend(f"{self.gain:.3f}")
-                    time.sleep(1)
+                    time.sleep(1.5)
                 
                     # Take new measurement
                     dataPoint = self.digi.record()
                     adjustment_count += 1
             
                 if adjustment_count >= MAX_GAIN_ADJUSTMENTS:
-                    print(f"    Warning: Could not stabilize voltage after {MAX_GAIN_ADJUSTMENTS} attempts")
+                    print(f"    Warning: Could not converge to target after {MAX_GAIN_ADJUSTMENTS} attempts (final: {dataPoint:.2f}V)")
+                else:
+                    print(f"    Converged: {dataPoint:.2f}V (within {VOLTAGE_TOLERANCE}V of target)")
             
                 # Store data (including gain used)
                 data.append({
