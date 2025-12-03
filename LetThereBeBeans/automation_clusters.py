@@ -334,125 +334,121 @@ class HyperSpectralExtinction(QObject):
     def _extinction(self):
         """
         Automation logic - runs in separate thread.
-        The underscore denotes that it doesn't interact with the GUI directly.
+        Includes automatic gain control to keep detector voltage in optimal range.
         """
         # Create timestamped directory for this scan
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_dir = os.path.join("data", timestamp)
         os.makedirs(output_dir, exist_ok=True)
         csv_filename = os.path.join(output_dir, 'scan.csv')
-        
+    
         print(f"Saving data to: {output_dir}")
-        
+    
         # Calculate wavelength step size
         step_size = (self.cornerstone.endWavelength - self.cornerstone.startWavelength) / (self.cornerstone.numSteps - 1)
-        
+    
         # Open shutter
         self.cornerstone.mono.open_shutter()
-        
+    
         # Prepare data storage
         data = []
-        
+    
+        # Gain control parameters
+        TARGET_VOLTAGE = 8.0  # Middle of 4-12V range
+        VOLTAGE_MIN = 4.0
+        VOLTAGE_MAX = 12.0
+        MAX_GAIN_ADJUSTMENTS = 20  # Prevent infinite loops
+    
         # Loop through stored positions
         for i in range(len(self.xwing.coordinates)):
-            if not self.worker._is_running:  # Check stop button
+            if not self.worker._is_running:
                 break
-            
-            # Get coordinates from XWing
+        
             x, y = self.xwing.coordinates[i]
-            
+        
             # Move to position
             self.xwing.ac.commandSend(f"G1 X{x} Y{y} F{self.xwing.rate}")
             print(f"Position {i+1}/{len(self.xwing.coordinates)}: X={x}, Y={y}")
             time.sleep(4)
-            
+        
             # Reset plot for new position
             self.plotter.resetPlot()
-            
+        
             # Scan through wavelengths at this position
             for j in range(self.cornerstone.numSteps):
-                if not self.worker._is_running:  # Check stop button
+                if not self.worker._is_running:
                     break
-                
+            
                 # Set wavelength
                 wavelength = self.cornerstone.startWavelength + j * step_size
                 self.cornerstone.mono.goto(wavelength)
-                
+            
+                # Wait for wavelength to stabilize (with workaround for stuck -1)
+                while self.cornerstone.mono.position() == -1:
+                    self.cornerstone.mono.goto(wavelength)  # Workaround for bug
+                    time.sleep(0.1)
+            
                 time.sleep(1)
-                
-                # Take measurement
+            
+                # Automatic gain control
                 dataPoint = self.digi.record()
-
-                # Reducing gain to 5 volts if lock in voltage exceeds 10 volts
-                if dataPoint > 10:
-                    while dataPoint > 5:
-                        self.gain = self.gain-0.1
-                        self.pmt.commandSend(f"{self.gain:.3f}")
-                        time.sleep(1)
-                        dataPoint = self.digi.record()
-
-                    self.gain = self.gain+0.1
-                    self.pmt.commandSend(f"{self.gain:.3f}")
-
-                    while dataPoint > 5:
-                        self.gain = self.gain-0.01
-                        self.pmt.commandSend(f"{self.gain:.3f}")
-                        time.sleep(1)
-                        dataPoint = self.digi.record()
-
-                    self.gain = self.gain+0.05
-                    self.pmt.commandSend(f"{self.gain:.3f}")
-                    time.sleep(2)
-
-                if dataPoint < 5 and self.gain < 1:
-                    while dataPoint < 10:
-                        self.gain = self.gain+0.1
-                        self.pmt.commandSend(f"{self.gain:.3f}")
-                        time.sleep(1)
-                        dataPoint = self.digi.record()
-
-                    self.gain = self.gain-0.1
-                    self.pmt.commandSend(f"{self.gain:.3f}")
-
-                    while dataPoint < 10:
-                        self.gain = self.gain+0.01
-                        self.pmt.commandSend(f"{self.gain:.3f}")
-                        time.sleep(1)
-                        dataPoint = self.digi.record()
-
-                    self.gain = self.gain-0.05
-                    self.pmt.commandSend(f"{self.gain:.3f}")
+                adjustment_count = 0
+            
+                while (dataPoint < VOLTAGE_MIN or dataPoint > VOLTAGE_MAX) and adjustment_count < MAX_GAIN_ADJUSTMENTS:
+                    if dataPoint > VOLTAGE_MAX:
+                        # Voltage too high - reduce gain
+                        step = 0.1 if abs(dataPoint - TARGET_VOLTAGE) > 2 else 0.01
+                        self.gain -= step
+                        print(f"    Voltage {dataPoint:.2f}V too high, reducing gain to {self.gain:.3f}")
+                    
+                    elif dataPoint < VOLTAGE_MIN:
+                        # Voltage too low - increase gain
+                        step = 0.1 if abs(dataPoint - TARGET_VOLTAGE) > 2 else 0.01
+                        self.gain += step
+                        print(f"    Voltage {dataPoint:.2f}V too low, increasing gain to {self.gain:.3f}")
                 
-                # Store data
+                    # Apply new gain
+                    self.pmt.commandSend(f"{self.gain:.3f}")
+                    time.sleep(1)
+                
+                    # Take new measurement
+                    dataPoint = self.digi.record()
+                    adjustment_count += 1
+            
+                if adjustment_count >= MAX_GAIN_ADJUSTMENTS:
+                    print(f"    Warning: Could not stabilize voltage after {MAX_GAIN_ADJUSTMENTS} attempts")
+            
+                # Store data (including gain used)
                 data.append({
                     'x': x,
                     'y': y,
                     'wavelength': wavelength,
-                    'intensity': dataPoint
+                    'intensity': dataPoint,
+                    'gain': self.gain  # Record gain used for this measurement
                 })
-                
-                # Update UI (update core states which triggers GUI updates)
+            
+                # Update UI
                 self.xwing._x = x
                 self.xwing._y = y
                 self.xwing.xChanged.emit()
                 self.xwing.yChanged.emit()
-                
+            
                 self.cornerstone.currentWavelength = wavelength
                 self.cornerstone.waveChanged.emit()
-                
+            
                 # Update plot
                 self.plotter.updatePlot(wavelength, dataPoint)
-                
-                print(f"  λ={wavelength:.2f} nm, Intensity={dataPoint}")
             
+                print(f"  λ={wavelength:.2f} nm, Voltage={dataPoint:.2f}V, Gain={self.gain:.3f}")
+        
             # Save to CSV after each position (crash-safe)
             with open(csv_filename, 'w', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=['x', 'y', 'wavelength', 'intensity'])
+                writer = csv.DictWriter(f, fieldnames=['x', 'y', 'wavelength', 'intensity', 'gain'])
                 writer.writeheader()
                 writer.writerows(data)
-            
-            print(f"Saved data - {len(data)} measurements")
         
+            print(f"Saved data - {len(data)} measurements")
+    
         # Close shutter when done
         self.cornerstone.mono.close_shutter()
         print(f"Scan complete! Data saved to: {csv_filename}")
