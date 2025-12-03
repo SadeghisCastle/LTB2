@@ -1,4 +1,4 @@
-from PySide6.QtCore import QObject, Signal, Property, Slot
+from PySide6.QtCore import QObject, Signal, Property, Slot, QThread
 from PySide6.QtWidgets import QFileDialog
 from hardware_controllers import *
 import pyqtgraph as pg
@@ -7,6 +7,50 @@ import pyqtgraph as pg
 """ Create QObject classes for each hardware controller then 
 just copy and paste the slots, signals, and properties to
 MasterCore so it can be simply used in automations """
+class Worker(QObject):
+    """ Object that creates a thread for automation logic then moves logic
+    to that thread. All you have to do is create the object with the function 
+    that you want to run on a separate thread. """
+    finished = Signal()
+    error = Signal(str)
+    
+    def __init__(self, func):
+        """ Passes the function, sets _is_running to true to denote
+        that a proccess is running. """
+        super().__init__()
+        self.func = func
+        self._is_running = True
+        self.thread = None
+    
+    def start(self):
+        """Automatically create thread and start it"""
+        self.thread = QThread()
+        
+        # Move object (i.e. anything that uses self) to the thread
+        self.moveToThread(self.thread)
+        
+        # Connect QThread signals. Have to use this if using the QThread object.
+        self.thread.started.connect(self.run)
+        self.finished.connect(self.thread.quit)
+        self.finished.connect(self.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        
+        # Start the thread
+        self.thread.start()
+    
+    def run(self):
+        """ Execute the function that was passed """
+        self.func()
+        self.finished.emit()
+    
+    def stop(self):
+        """ Stop button for later use """
+        self._is_running = False
+    
+    def is_running(self):
+        """ Checks if thread is still running """
+        return self.thread is not None and self.thread.isRunning()
+
 class XWing(QObject):
     
     
@@ -14,13 +58,14 @@ class XWing(QObject):
     yChanged = Signal()
 
     def __init__(self):
+        super().__init__()
         self._x = 0.0
         self._y = 0.0
         self._home_x = 0.0
         self._home_y = 0.0
         self._step = 0.1  # mm per button press (change as needed)
         self.rate = 50
-        self.ac = ArduinoClient("COM4", 115200)
+        self.ac = ArduinoClient("COM7", 115200)
         self.coordinates = []
         print("XWing online")
         
@@ -116,6 +161,7 @@ class Cornerstone(QObject):
     numStepsChanged = Signal()
     
     def __init__(self):
+        super().__init__()
         self.mono = CornerstoneClient("LetThereBeBeans/helpers/cornerstone_helper.exe")
         self.mono.open()
         self.targetWavelength = 630
@@ -222,6 +268,108 @@ class LivePlot(QObject):
         if self.plot_window:
             self.plot_window.close()
 
+class Oscilloscope(QObject):
+    """Live oscilloscope waveform viewer"""
+    
+    def __init__(self):
+        super().__init__()
+        
+        self.digi = NIScopeClient()
+        
+        # Create plot window
+        self.plot_window = pg.plot(title="Oscilloscope")
+        self.plot_window.setLabel('left', 'Voltage', units='V')
+        self.plot_window.setLabel('bottom', 'Sample')
+        self.plot_window.showGrid(x=True, y=True)
+        self.plot_curve = self.plot_window.plot(pen='y')
+        
+        self.is_viewing = False
+        self.viewer_worker = None
+        
+        print("Oscilloscope initialized")
+    
+    @Slot()
+    def startLiveView(self):
+        """Start continuous live viewing"""
+        if self.is_viewing:
+            print("Already viewing")
+            return
+        
+        self.is_viewing = True
+        self.viewer_worker = Worker(self._liveViewLoop)
+        self.viewer_worker.start()
+        print("Live view started")
+    
+    def _liveViewLoop(self):
+        """Continuously capture and display waveforms"""
+        while self.viewer_worker._is_running and self.is_viewing:
+            try:
+                # Capture waveform
+                with niscope.Session("Dev1") as session:
+                    session.channels[1].configure_vertical(range=40.0, coupling=niscope.VerticalCoupling.DC)
+                    session.configure_horizontal_timing(
+                        min_sample_rate=5000000,
+                        min_num_pts=500,
+                        ref_position=50.0,
+                        num_records=1,
+                        enforce_realtime=True
+                    )
+                
+                    with session.initiate():
+                        waveforms = session.channels[1].fetch()
+                
+                wfm = waveforms[0]
+                samples = np.array(wfm.samples)
+                
+                # Update plot (PyQtGraph is thread-safe for this)
+                self.plot_curve.setData(samples)
+                
+            except Exception as e:
+                print(f"Error in live view: {e}")
+                break
+        
+        print("Live view stopped")
+    
+    @Slot()
+    def stopLiveView(self):
+        """Stop live viewing"""
+        self.is_viewing = False
+        if self.viewer_worker:
+            self.viewer_worker.stop()
+        print("Stopping live view...")
+    
+    @Slot()
+    def captureSingle(self):
+        """Capture and display a single waveform"""
+        try:
+            with niscope.Session("Dev1") as session:
+                session.channels[1].configure_vertical(range=40.0, coupling=niscope.VerticalCoupling.DC)
+                session.configure_horizontal_timing(
+                    min_sample_rate=5000000,
+                    min_num_pts=5000000,
+                    ref_position=50.0,
+                    num_records=1,
+                    enforce_realtime=True
+                )
+            
+                with session.initiate():
+                    waveforms = session.channels[1].fetch()
+            
+            wfm = waveforms[0]
+            samples = np.array(wfm.samples)
+            
+            # Update plot
+            self.plot_curve.setData(samples)
+            print(f"Captured {len(samples)} samples")
+            
+        except Exception as e:
+            print(f"Error capturing: {e}")
+    
+    def closePlot(self):
+        """Close the plot window"""
+        self.stopLiveView()
+        if self.plot_window:
+            self.plot_window.close()
 
 class MasterCore(XWing, Cornerstone): # Add new cores here
     """ Combined class with all cores. """
