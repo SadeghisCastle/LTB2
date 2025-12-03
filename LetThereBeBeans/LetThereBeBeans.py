@@ -9,7 +9,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import QUrl
 from PySide6 import QtGui
 from automation_clusters import HyperSpectral, HyperSpectralExtinction, QuickScanAutomation
-from pretend_cores import XWing, Cornerstone, Oscilloscope
+from cores import XWing, Cornerstone, Oscilloscope
 
 
 
