@@ -21,16 +21,12 @@ def main():
     # Importing cores
     xwing = XWing()
     cornerstone = Cornerstone()
-    oscilloscope = Oscilloscope()
-
-
     extinction = HyperSpectralExtinction(xwing, cornerstone)
 
 
     # Make "backend" visible to QML (what we used in the .qml file)
     engine.rootContext().setContextProperty("CornerstoneBackend", cornerstone)
     engine.rootContext().setContextProperty("XWingBackend", xwing)
-    engine.rootContext().setContextProperty("OscilloscopeBackend", oscilloscope)
     engine.rootContext().setContextProperty("AutomationBackend", extinction)
 
     qml_file = Path(__file__).resolve().parent / "components/main.qml"

@@ -194,7 +194,7 @@ class HyperSpectralExtinction(QObject):
         self.digi = NIScopeClient()
         self.plotter = None
         self.worker = None
-        self.pmt = ArduinoClient("COM9", 115200)
+        self.pmt = ArduinoClient("COM8", 115200)
         self.gain = 0
         self.pmt.commandSend(f"{self.gain:.3f}")
         self.xwing = xwing
@@ -227,6 +227,7 @@ class HyperSpectralExtinction(QObject):
         """Stop the current scan"""
         if self.worker:
             self.worker.stop()
+            self.pmt.commandSend("0")
             print("Stopping scan...")
     
     def _extinction(self):
@@ -243,7 +244,7 @@ class HyperSpectralExtinction(QObject):
         print(f"Saving data to: {output_dir}")
     
         # Calculate wavelength step size
-        step_size = (self.cornerstone.endWavelength - self.cornerstone.startWavelength) / (self.cornerstone.numSteps - 1)
+        step_size = (self.cornerstone.endWavelength - self.cornerstone.startWavelength) / (self.cornerstone.numSteps)
     
         # Open shutter
         self.cornerstone.mono.open_shutter()
@@ -252,8 +253,10 @@ class HyperSpectralExtinction(QObject):
         data = []
     
         # Gain control parameters
-        TARGET_VOLTAGE = 8.0  # Target voltage
+        TARGET_VOLTAGE = 6.0  # Target voltage
         VOLTAGE_TOLERANCE = 0.5  # Acceptable range: 7.5V - 8.5V
+        VOLTAGE_MIN = 2
+        VOLTAGE_MAX=12
         MAX_GAIN_ADJUSTMENTS = 30  # Prevent infinite loops
     
         # Loop through stored positions
@@ -280,47 +283,46 @@ class HyperSpectralExtinction(QObject):
                 wavelength = self.cornerstone.startWavelength + j * step_size
                 self.cornerstone.mono.goto(wavelength)
             
-                # Wait for wavelength to stabilize (with workaround for stuck -1)
-                while self.cornerstone.mono.position() == -1:
-                    self.cornerstone.mono.goto(wavelength)  # Workaround for bug
-                    time.sleep(0.1)
-            
                 time.sleep(1)
             
                 # Automatic gain control - converge to target voltage
                 dataPoint = self.digi.record()
                 adjustment_count = 0
-            
-                # Keep adjusting until within tolerance of target
-                while abs(dataPoint - TARGET_VOLTAGE) > VOLTAGE_TOLERANCE and adjustment_count < MAX_GAIN_ADJUSTMENTS:
-                    voltage_error = dataPoint - TARGET_VOLTAGE
+
+                if dataPoint > VOLTAGE_MAX or (dataPoint < VOLTAGE_MIN and self.gain < 1):            
+                    # Keep adjusting until within tolerance of target
+                    while abs(dataPoint - TARGET_VOLTAGE) > VOLTAGE_TOLERANCE and (adjustment_count < MAX_GAIN_ADJUSTMENTS and self.gain < 1):
+                        voltage_error = dataPoint - TARGET_VOLTAGE
                 
-                    # Determine step size based on how far we are from target
-                    if abs(voltage_error) > 4:
-                        step = 0.2  # Large steps when far away
-                    elif abs(voltage_error) > 2:
-                        step = 0.1  # Medium steps
-                    elif abs(voltage_error) > 1:
-                        step = 0.05  # Small steps
-                    else:
-                        step = 0.01  # Fine adjustment
+                        # Determine step size based on how far we are from target
+                        if abs(voltage_error) > 2:
+                            step = 0.1  # Large steps when far away
+                        elif abs(voltage_error) > 1:
+                            step = 0.01  # Small steps
+                        else:
+                            step = 0.001  # Fine adjustment
                 
-                    if voltage_error > 0:
-                        # Voltage too high - reduce gain
-                        self.gain -= step
-                        print(f"    Voltage {dataPoint:.2f}V (target {TARGET_VOLTAGE:.1f}V), reducing gain to {self.gain:.3f}")
-                    else:
-                        # Voltage too low - increase gain
-                        self.gain += step
-                        print(f"    Voltage {dataPoint:.2f}V (target {TARGET_VOLTAGE:.1f}V), increasing gain to {self.gain:.3f}")
+                        if voltage_error > 0:
+                            # Voltage too high - reduce gain
+                            self.gain -= step*0.7 # Step size different than if voltage is too low to prevent playing ping pong
+                            print(f"    Voltage {dataPoint:.2f}V (target {TARGET_VOLTAGE:.1f}V), reducing gain to {self.gain:.3f}")
+                        else:
+                            if (self.gain + step <= 1):
+                                # Voltage too low - increase gain
+                                self.gain += step
+                                print(f"    Voltage {dataPoint:.2f}V (target {TARGET_VOLTAGE:.1f}V), increasing gain to {self.gain:.3f}")
+                            else:
+                                self.gain = self.gain
+                                print("too much sauce")
+                                break
                 
-                    # Apply new gain
-                    self.pmt.commandSend(f"{self.gain:.3f}")
-                    time.sleep(1.5)
+                        # Apply new gain
+                        self.pmt.commandSend(f"{self.gain:.3f}")
+                        time.sleep(1.5)
                 
-                    # Take new measurement
-                    dataPoint = self.digi.record()
-                    adjustment_count += 1
+                        # Take new measurement
+                        dataPoint = self.digi.record()
+                        adjustment_count += 1
             
                 if adjustment_count >= MAX_GAIN_ADJUSTMENTS:
                     print(f"    Warning: Could not converge to target after {MAX_GAIN_ADJUSTMENTS} attempts (final: {dataPoint:.2f}V)")

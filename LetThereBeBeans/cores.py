@@ -166,9 +166,9 @@ class Cornerstone(QObject):
         self.mono.open()
         self.targetWavelength = 630
         self.shutterState = "Closed"
-        self.startWavelength = 550
-        self.endWavelength = 1000
-        self.numSteps = 450
+        self.startWavelength = 600
+        self.endWavelength = 800
+        self.numSteps = 50
         self.currentGrating = 3
         self.currentWavelength = 0.0
         print("Cornerstone online")
@@ -215,7 +215,6 @@ class Cornerstone(QObject):
     def setWavelength(self, target_str):
         self.targetWavelength = float(target_str)
         self.mono.goto(self.targetWavelength)
-        
         self.currentWavelength = self.mono.position()
         self.waveChanged.emit()
         print('Wavelength set')

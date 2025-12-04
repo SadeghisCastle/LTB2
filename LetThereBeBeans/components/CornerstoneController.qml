@@ -326,7 +326,7 @@ Row {
                     y: 17
                     width: 64
                     height: 20
-                    text: "550"
+                    text: "600"
                     font.pixelSize: 12
                     onEditingFinished: CornerstoneBackend.setStartWavelength(text)
 
@@ -347,7 +347,7 @@ Row {
                     y: 49
                     width: 64
                     height: 20
-                    text: "1000"
+                    text: "800"
                     font.pixelSize: 12
                     onEditingFinished: CornerstoneBackend.setEndWavelength(text)
 
@@ -368,7 +368,7 @@ Row {
                     y: 81
                     width: 80
                     height: 20
-                    text: "450"
+                    text: "50"
                     font.pixelSize: 12
                     onEditingFinished: CornerstoneBackend.setNumSteps(text)
 
