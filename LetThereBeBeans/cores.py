@@ -56,12 +56,14 @@ class XWing(QObject):
     
     xChanged = Signal()
     yChanged = Signal()
+    memChanged = Signal()
     coordinatesChanged = Signal()
 
     def __init__(self):
         super().__init__()
         self._x = 0.0
         self._y = 0.0
+        self._posMem = 1
         self._home_x = 0.0
         self._home_y = 0.0
         self._step = 0.1  # mm per button press (change as needed)
@@ -104,6 +106,7 @@ class XWing(QObject):
         self.ac.commandSend(f"G1 Y{self._y} F{self.rate}")
         print("Move Up ->", self._y)
         self.yChanged.emit()
+
 
     @Slot()
     def moveDown(self):
@@ -172,6 +175,10 @@ class XWing(QObject):
         Args:
             region: "A", "B", "C", or "D"
         """
+        if (region == "Other"):
+            region = str(self._posMem)
+
+
         sample = {
             'x': self._x,
             'y': self._y,
@@ -203,6 +210,12 @@ class XWing(QObject):
         self.coordinatesChanged.emit()
         print("Cleared all samples")
     
+    @Slot(int)
+    def memSelected(self, memPos):
+        self._posMem = memPos
+        print(f"Mem {memPos} Selected")
+
+
     def getSamplesByRegion(self, region):
         """Get all samples for a specific region"""
         return [s for s in self.samples if s['region'] == region]
@@ -216,6 +229,8 @@ class XWing(QObject):
     def referencePosition(self):
         """Expose reference as QVariant for QML"""
         return self.reference if self.reference else {}
+
+
 
 class Cornerstone(QObject):
     waveChanged = Signal()

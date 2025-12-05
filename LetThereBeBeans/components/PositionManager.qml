@@ -117,7 +117,7 @@ Rectangle {
             ComboBox {
                 id: regionCombo
                 Layout.preferredWidth: 100
-                model: ["A", "B", "C", "D"]
+                model: ["A", "B", "C", "D", "Other"]
                 currentIndex: 0
             }
 

@@ -402,30 +402,162 @@ class HyperSpectralExtinction(QObject):
         self.cornerstone.mono.close_shutter()
         print(f"Scan complete! Data saved to: {csv_filename}")
 
-class QuickScanAutomation(QObject):
-    """Different automation using same cores"""
-    
-    def __init__(self, xwing, cornerstone):
+class HyperSpectralSingleFluor(QObject):
+     """Extinction automation using hyperspectral setup"""
+     def __init__(self, xwing, cornerstone):
         super().__init__()
-        self.pmt = ArduinoClient("COM9", 115200)
+        self.digi = NIScopeClient()
+        self.plotter = None
+        self.worker = None
+        self.pmt = ArduinoClient("COM8", 115200)
+        self.gain = 0
+        self.pmt.commandSend(f"{self.gain:.3f}")
+        self.xwing = xwing
+        self.cornerstone = cornerstone
+        self.gain_map = {}
 
-    @Slot()
-    def threading(self):
-        if self.worker is not None and self.worker._is_running():
+        print("Extinction Automation Ready")
+     @Slot()
+     def threading(self):
+        """Start the extinction scan automation"""
+        if self.worker is not None and self.worker.is_running():
             print("Hold ur horses...")
             return
         
-        # Create the object that will run the automation on a different thread
-        self.worker = Worker(self._extinction)
+        if self.plotter is None:
+            self.plotter = LivePlot()
+        
+        self.worker = Worker(self._singleFluor)
         self.worker.start()
         print("Scan started")
     
-    @Slot()
-    def _extinction(self):
-        voltages = np.linspace(0, 1, 11)
-
-        for i in range(len(voltages)):
-            self.pmt.commandSend(f"{voltages[i]:.3f}")
-            print(voltages[i])
-            time.sleep(1)
+     @Slot()
+     def stopScan(self):
+        """Stop the current scan"""
+        if self.worker:
+            self.worker.stop()
+            self.worker = None
+            self.pmt.commandSend("0")
+            print("Stopping scan...")
     
+     def _scanPosition(self, coord, scan_type):
+        """
+        Scan a single position with optional gain adjustment
+        
+        Args:
+            coord: Dictionary with 'x', 'y', 'region', 'type'
+            adjust_gain: If True, adjust gain. If False, use gain values from coordinate dictionary.
+        
+        Returns:
+            List of measurement dictionaries
+        """
+        self.pmt.commandSend("1")
+        
+        step_size = (self.cornerstone.endWavelength - self.cornerstone.startWavelength) / self.cornerstone.numSteps
+        
+        x, y = coord['x'], coord['y']
+        region = coord.get('region', 'REF')
+        
+        # Move to position
+        self.xwing.ac.commandSend(f"G1 X{x} Y{y} F{self.xwing.rate}")
+        print(f"\nScanning {scan_type} for Region {region}: X={x}, Y={y}")
+        time.sleep(4)
+        
+        self.plotter.resetPlot()
+        
+        measurements = []
+                # Scan through wavelengths
+        for j in range(self.cornerstone.numSteps):
+            if not self.worker._is_running:
+                break
+            
+            wavelength = self.cornerstone.startWavelength + j * step_size
+            self.cornerstone.mono.goto(wavelength)
+            time.sleep(1)
+            dataPoint = self.digi.record()
+
+            measurements.append({
+                'region': region,
+                'scan_type': scan_type,
+                'x': x,
+                'y': y,
+                'wavelength': wavelength,
+                'voltage': dataPoint,
+                'gain': self.gain
+            })
+            
+        # Update UI
+        self.xwing._x = x
+        self.xwing._y = y
+        self.xwing.xChanged.emit()
+        self.xwing.yChanged.emit()
+            
+        self.cornerstone.currentWavelength = wavelength
+        self.cornerstone.waveChanged.emit()
+            
+        self.plotter.updatePlot(wavelength, dataPoint)
+            
+        print(f"  λ={wavelength:.2f} nm, V={dataPoint:.2f}V, Gain={self.gain:.3f}")
+        
+        return measurements
+    
+     def _singleFluor(self):
+        """
+        Main automation logic.
+        Scans all regions: reference first (with gain adjustment), then samples (locked gains).
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        output_dir = os.path.join("data", timestamp)
+        os.makedirs(output_dir, exist_ok=True)
+        csv_filename = os.path.join(output_dir, 'fluor_scan.csv')
+        
+        print(f"Saving data to: {output_dir}")
+        
+        if self.xwing.reference is None:
+            print("FYI: No reference")
+
+        if len(self.xwing.samples) == 0:
+            print("FYI: No regions")
+            return
+
+        self.cornerstone.mono.open_shutter()
+        
+        all_data = []
+
+        print(f"\n{'='*50}")
+        print(f"Scanning REFERENCE")
+        print(f"{'='*50}")
+        
+        # Scan reference ONCE
+        if self.xwing.reference:
+            ref_data = self._scanPosition(self.xwing.reference, "reference")
+            all_data.extend(ref_data)
+        
+        # Scan all samples
+        print(f"\n{'='*50}")
+        print(f"Scanning SAMPLES")
+        print(f"{'='*50}")
+        
+        for sample in self.xwing.samples:
+            if not self.worker._is_running:
+                break
+            sample_data = self._scanPosition(sample, "sample")
+            all_data.extend(sample_data)
+        
+        # Save all data
+        with open(csv_filename, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=[
+                'region', 'scan_type', 'x', 'y', 'wavelength', 'voltage', 'gain'
+            ])
+            writer.writeheader()
+            writer.writerows(all_data)
+        
+        print(f"\nSaved extinction data - {len(all_data)} measurements")
+        
+        self.cornerstone.mono.close_shutter()
+        print(f"Scan complete! Data saved to: {csv_filename}")
+  
+
+    
+    
+     

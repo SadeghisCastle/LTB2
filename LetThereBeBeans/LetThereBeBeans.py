@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import QUrl
 from PySide6 import QtGui
-from automation_clusters import HyperSpectral, HyperSpectralExtinction, QuickScanAutomation
+from automation_clusters import HyperSpectral, HyperSpectralExtinction, QuickScanAutomation, HyperSpectralSingleFluor
 from cores import XWing, Cornerstone, Oscilloscope
 
 
@@ -21,7 +21,7 @@ def main():
     # Importing cores
     xwing = XWing()
     cornerstone = Cornerstone()
-    extinction = HyperSpectralExtinction(xwing, cornerstone)
+    extinction = HyperSpectralSingleFluor(xwing, cornerstone)
 
 
     # Make "backend" visible to QML (what we used in the .qml file)
