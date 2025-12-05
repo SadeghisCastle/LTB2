@@ -56,6 +56,7 @@ class XWing(QObject):
     
     xChanged = Signal()
     yChanged = Signal()
+    coordinatesChanged = Signal()
 
     def __init__(self):
         super().__init__()
@@ -66,7 +67,8 @@ class XWing(QObject):
         self._step = 0.1  # mm per button press (change as needed)
         self.rate = 50
         self.ac = ArduinoClient("COM7", 115200)
-        self.coordinates = []
+        self.reference = None
+        self.samples = []
         print("XWing online")
         
 
@@ -88,6 +90,11 @@ class XWing(QObject):
     @Property(str, notify=yChanged)
     def yPosString(self):
         return f"{self._y:.2f}"
+
+    @Property('QVariantList', notify=coordinatesChanged)
+    def coordinatesList(self):
+        """Expose coordinates as QVariantList for QML"""
+        return self.coordinates
 
     # --- Movement slots (called from QML) ---
     @Slot()
@@ -148,10 +155,67 @@ class XWing(QObject):
         self.xChanged.emit()
         self.yChanged.emit()
 
-    @Slot(float, float)
-    def storeCoordinates(self, x, y):
-        self.coordinates.append((self._x,self._y))
-        print(self.coordinates)
+    @Slot()
+    def storeReference(self):
+        """Store current position as THE reference"""
+        self.reference = {
+            'x': self._x,
+            'y': self._y
+        }
+        self.coordinatesChanged.emit()
+        print(f"Stored reference: {self.reference}")
+    
+    @Slot(str)
+    def storeSample(self, region):
+        """
+        Store current position as a sample for a region
+        Args:
+            region: "A", "B", "C", or "D"
+        """
+        sample = {
+            'x': self._x,
+            'y': self._y,
+            'region': region
+        }
+        self.samples.append(sample)
+        self.coordinatesChanged.emit()
+        print(f"Stored sample: {sample}")
+    
+    @Slot(int)
+    def removeSample(self, index):
+        """Remove a sample by index"""
+        if 0 <= index < len(self.samples):
+            removed = self.samples.pop(index)
+            self.coordinatesChanged.emit()
+            print(f"Removed sample: {removed}")
+    
+    @Slot()
+    def clearReference(self):
+        """Clear the reference"""
+        self.reference = None
+        self.coordinatesChanged.emit()
+        print("Cleared reference")
+    
+    @Slot()
+    def clearSamples(self):
+        """Clear all samples"""
+        self.samples = []
+        self.coordinatesChanged.emit()
+        print("Cleared all samples")
+    
+    def getSamplesByRegion(self, region):
+        """Get all samples for a specific region"""
+        return [s for s in self.samples if s['region'] == region]
+
+    @Property('QVariantList', notify=coordinatesChanged)
+    def samplesList(self):
+        """Expose samples as QVariantList for QML"""
+        return self.samples
+    
+    @Property('QVariant', notify=coordinatesChanged)
+    def referencePosition(self):
+        """Expose reference as QVariant for QML"""
+        return self.reference if self.reference else {}
 
 class Cornerstone(QObject):
     waveChanged = Signal()

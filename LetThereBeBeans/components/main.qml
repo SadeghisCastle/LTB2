@@ -4,7 +4,7 @@ import QtQuick.Controls 2.15
 ApplicationWindow {
     visible: true
     width: 600
-    height: 550
+    height: 600
     title: "Hyperspectral"
     
     Row {
@@ -42,8 +42,8 @@ ApplicationWindow {
             
             Loader {
                 width: 400
-                height: 50
-                source: "FileSaveSelector.qml"
+                height: 250
+                source: "PositionManager.qml"
             }
             
             // Automation controls
