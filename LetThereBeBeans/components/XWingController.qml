@@ -445,7 +445,7 @@ Rectangle {
             height: 32
             text: qsTr("")
             display: AbstractButton.IconOnly
-            onClicked: XWingBackend.memSelected(2)
+            onClicked: XWingBackend.memSelected(3)
         }
 
 
@@ -458,7 +458,7 @@ Rectangle {
             height: 32
             text: qsTr("")
             display: AbstractButton.IconOnly
-            onClicked: XWingBackend.memSelected(3)
+            onClicked: XWingBackend.memSelected(5)
         }
 
 
@@ -471,7 +471,7 @@ Rectangle {
             height: 32
             text: qsTr("")
             display: AbstractButton.IconOnly
-            onClicked: XWingBackend.memSelected(4)
+            onClicked: XWingBackend.memSelected(7)
         }
 
 
@@ -484,7 +484,7 @@ Rectangle {
             height: 32
             text: qsTr("")
             display: AbstractButton.IconOnly
-            onClicked: XWingBackend.memSelected(5)
+            onClicked: XWingBackend.memSelected(2)
         }
 
 
@@ -497,7 +497,7 @@ Rectangle {
             height: 32
             text: qsTr("")
             display: AbstractButton.IconOnly
-            onClicked: XWingBackend.memSelected(6)
+            onClicked: XWingBackend.memSelected(4)
         }
 
 
@@ -510,7 +510,7 @@ Rectangle {
             height: 32
             text: qsTr("")
             display: AbstractButton.IconOnly
-            onClicked: XWingBackend.memSelected(7)
+            onClicked: XWingBackend.memSelected(6)
         }
 
 

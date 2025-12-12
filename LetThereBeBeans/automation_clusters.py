@@ -451,6 +451,7 @@ class HyperSpectralSingleFluor(QObject):
         Returns:
             List of measurement dictionaries
         """
+        self.gain = 1
         self.pmt.commandSend("1")
         
         step_size = (self.cornerstone.endWavelength - self.cornerstone.startWavelength) / self.cornerstone.numSteps
@@ -473,8 +474,13 @@ class HyperSpectralSingleFluor(QObject):
             
             wavelength = self.cornerstone.startWavelength + j * step_size
             self.cornerstone.mono.goto(wavelength)
-            time.sleep(1)
-            dataPoint = self.digi.record()
+            time.sleep(30)
+            dataPoint1 = self.digi.record()
+            dataPoint2 = self.digi.record()
+            dataPoint3 = self.digi.record()
+            dataPoint4 = self.digi.record()
+
+            dataPoint = (dataPoint1 + dataPoint2 + dataPoint3 + dataPoint4)/4
 
             measurements.append({
                 'region': region,
@@ -486,18 +492,20 @@ class HyperSpectralSingleFluor(QObject):
                 'gain': self.gain
             })
             
+            self.cornerstone.currentWavelength = wavelength
+            self.cornerstone.waveChanged.emit()
+            
+            self.plotter.updatePlot(wavelength, dataPoint)
+
+            print(f"  λ={wavelength:.2f} nm, V={dataPoint:.2f}V, Gain={self.gain:.3f}")
+            
         # Update UI
         self.xwing._x = x
         self.xwing._y = y
         self.xwing.xChanged.emit()
         self.xwing.yChanged.emit()
             
-        self.cornerstone.currentWavelength = wavelength
-        self.cornerstone.waveChanged.emit()
-            
-        self.plotter.updatePlot(wavelength, dataPoint)
-            
-        print(f"  λ={wavelength:.2f} nm, V={dataPoint:.2f}V, Gain={self.gain:.3f}")
+        
         
         return measurements
     
