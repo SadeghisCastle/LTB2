@@ -110,7 +110,7 @@ def main():
     engine.rootContext().setContextProperty("CornerstoneBackend", cornerstone)
     engine.rootContext().setContextProperty("XWingBackend", xwing)
     engine.rootContext().setContextProperty("AutomationManager", automation_manager)
-    engine.rootContext().setContextProperties("PMTGainShieldBackend", pmt)
+    engine.rootContext().setContextProperty("PMTGainShieldBackend", pmt)
 
     qml_file = Path(__file__).resolve().parent / "components/main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_file)))

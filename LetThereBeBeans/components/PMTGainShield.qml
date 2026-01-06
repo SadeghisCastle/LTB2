@@ -61,7 +61,7 @@ Rectangle {
             y: 65
             width: 100
             height: 20
-            text:  PMTGainShieldBackend.currentGain()
+            text:  PMTGainShieldBackend.currentGain
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             font.wordSpacing: -0.8

@@ -243,12 +243,13 @@ class PMTGainShield(QObject):
         
 
     # --- X position as a float (if you ever want numeric binding) ---
-    @Property(float, notify=gainChanged)
+    @Property(str, notify=gainChanged)
     def currentGain(self):
         return f"{self._gain}"
 
     @Slot(str)
     def setGain(self, desiredGain):
+        desiredGain = float(desiredGain)
         if desiredGain < 1.2:
             self._gain = desiredGain
             self.ac.commandSend(f"{desiredGain}")
