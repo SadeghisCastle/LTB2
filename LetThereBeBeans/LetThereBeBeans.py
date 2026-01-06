@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 import os
+import time
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Fusion"
 from PySide6.QtWidgets import QApplication, QMenuBar
@@ -38,17 +39,17 @@ class AutomationManager(QObject):
         if hasattr(self.current_automation, 'pmt'):
             try:
                 self.current_automation.pmt.commandSend("0")  # Turn off PMT
-                if hasattr(self.current_automation.pmt, 'close'):
-                    self.current_automation.pmt.close()
+                time.sleep(0.5)  # Give it time to process
+                if hasattr(self.current_automation.pmt, 'serialClose'):
+                    self.current_automation.pmt.serialClose()
+                    print("  Closed PMT serial connection")
             except Exception as e:
                 print(f"Warning: Could not clean up PMT: {e}")
 
+        # NIScopeClient doesn't need explicit cleanup (uses context manager)
+        # but we can clear the reference
         if hasattr(self.current_automation, 'digi'):
-            try:
-                if hasattr(self.current_automation.digi, 'close'):
-                    self.current_automation.digi.close()
-            except Exception as e:
-                print(f"Warning: Could not clean up digitizer: {e}")
+            self.current_automation.digi = None
 
         print(f"Cleaned up {self.current_type} automation")
 
