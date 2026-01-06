@@ -62,12 +62,16 @@ class Worker(QObject):
 class HyperSpectralExtinction(QObject):
     """Extinction automation using hyperspectral setup"""
 
-    def __init__(self, xwing, cornerstone):
+    def __init__(self, xwing, cornerstone, pmt_shield=None):
         super().__init__()
         self.digi = NIScopeClient()
         self.plotter = None
         self.worker = None
-        self.pmt = ArduinoClient("COM8", 115200)
+        # Use shared PMTGainShield's Arduino connection if provided
+        if pmt_shield is not None:
+            self.pmt = pmt_shield.ac
+        else:
+            self.pmt = ArduinoClient("COM8", 115200)
         self.gain = 0
         self.pmt.commandSend(f"{self.gain:.3f}")
         self.xwing = xwing
@@ -271,19 +275,23 @@ class HyperSpectralExtinction(QObject):
 
 class HyperSpectralSingleFluor(QObject):
      """Extinction automation using hyperspectral setup"""
-     def __init__(self, xwing, cornerstone):
+     def __init__(self, xwing, cornerstone, pmt_shield=None):
         super().__init__()
         self.digi = NIScopeClient()
         self.plotter = None
         self.worker = None
-        self.pmt = ArduinoClient("COM8", 115200)
+        # Use shared PMTGainShield's Arduino connection if provided
+        if pmt_shield is not None:
+            self.pmt = pmt_shield.ac
+        else:
+            self.pmt = ArduinoClient("COM8", 115200)
         self.gain = 0
         self.pmt.commandSend(f"{self.gain:.3f}")
         self.xwing = xwing
         self.cornerstone = cornerstone
         self.gain_map = {}
 
-        print("Extinction Automation Ready")
+        print("SingleFluor Automation Ready")
      @Slot()
      def threading(self):
         """Start the extinction scan automation"""

@@ -2,7 +2,6 @@
 import sys
 from pathlib import Path
 import os
-import time
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Fusion"
 from PySide6.QtWidgets import QApplication, QMenuBar
@@ -15,10 +14,11 @@ from cores import XWing, Cornerstone, Oscilloscope, PMTGainShield
 
 class AutomationManager(QObject):
     """Manages switching between automation clusters"""
-    def __init__(self, xwing, cornerstone, engine):
+    def __init__(self, xwing, cornerstone, pmt_shield, engine):
         super().__init__()
         self.xwing = xwing
         self.cornerstone = cornerstone
+        self.pmt_shield = pmt_shield
         self.engine = engine
         self.current_automation = None
         self.current_type = None
@@ -36,21 +36,16 @@ class AutomationManager(QObject):
         if hasattr(self.current_automation, 'stopScan'):
             self.current_automation.stopScan()
 
-        # Close hardware connections that need cleanup
+        # Reset PMT gain to 0 (but don't close the connection - GUI needs it)
         if hasattr(self.current_automation, 'pmt'):
             try:
-                self.current_automation.pmt.commandSend("0")  # Turn off PMT
-                time.sleep(0.5)  # Give it time to process
-                if hasattr(self.current_automation.pmt, 'serialClose'):
-                    self.current_automation.pmt.serialClose()
-                    print("  Closed PMT serial connection")
+                self.current_automation.pmt.commandSend("0")
+                print("  Reset PMT gain to 0")
             except Exception as e:
-                print(f"Warning: Could not clean up PMT: {e}")
+                print(f"Warning: Could not reset PMT: {e}")
 
-        # NIScopeClient doesn't need explicit cleanup (uses context manager)
-        # but we can clear the reference
-        if hasattr(self.current_automation, 'digi'):
-            self.current_automation.digi = None
+        # Clear references but don't close hardware
+        self.current_automation = None
 
         print(f"Cleaned up {self.current_type} automation")
 
@@ -59,26 +54,17 @@ class AutomationManager(QObject):
         # Clean up current automation first
         self._cleanup_current_automation()
 
-        # Create new automation instance
-        if automation_type == 'hyperspectral':
-            self.current_automation = HyperSpectral(self.xwing, self.cornerstone)
-            self.current_type = 'HyperSpectral'
-        elif automation_type == 'extinction':
-            self.current_automation = HyperSpectralExtinction(self.xwing, self.cornerstone)
+        # Create new automation instance with shared hardware
+        if automation_type == 'extinction':
+            self.current_automation = HyperSpectralExtinction(self.xwing, self.cornerstone, self.pmt_shield)
             self.current_type = 'HyperSpectralExtinction'
         elif automation_type == 'single_fluor':
-            self.current_automation = HyperSpectralSingleFluor(self.xwing, self.cornerstone)
+            self.current_automation = HyperSpectralSingleFluor(self.xwing, self.cornerstone, self.pmt_shield)
             self.current_type = 'HyperSpectralSingleFluor'
 
         # Update QML context
         self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
         print(f"Initialized automation: {self.current_type}")
-
-    @Slot()
-    def switchToHyperspectral(self):
-        """Switch to HyperSpectral automation (callable from QML)"""
-        if self.current_type != 'HyperSpectral':
-            self._initialize_automation('hyperspectral')
 
     @Slot()
     def switchToExtinction(self):
@@ -103,8 +89,8 @@ def main():
     cornerstone = Cornerstone()
     pmt = PMTGainShield()
 
-    # Create automation manager
-    automation_manager = AutomationManager(xwing, cornerstone, engine)
+    # Create automation manager with shared hardware
+    automation_manager = AutomationManager(xwing, cornerstone, pmt, engine)
 
     # Make "backend" visible to QML (what we used in the .qml file)
     engine.rootContext().setContextProperty("CornerstoneBackend", cornerstone)
