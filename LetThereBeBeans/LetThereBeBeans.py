@@ -4,13 +4,49 @@ from pathlib import Path
 import os
 
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Fusion"
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMenuBar
 from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtCore import QUrl
-from PySide6 import QtGui
+from PySide6.QtCore import QUrl, QObject
+from PySide6.QtGui import QActionGroup
 from automation_clusters import HyperSpectral, HyperSpectralExtinction, HyperSpectralSingleFluor
 from cores import XWing, Cornerstone, Oscilloscope
 
+
+class AutomationManager(QObject):
+    """Manages switching between automation clusters"""
+    def __init__(self, xwing, cornerstone, engine):
+        super().__init__()
+        self.xwing = xwing
+        self.cornerstone = cornerstone
+        self.engine = engine
+
+        # Initialize all automation clusters
+        self.hyperspectral = HyperSpectral(xwing, cornerstone)
+        self.extinction = HyperSpectralExtinction(xwing, cornerstone)
+        self.single_fluor = HyperSpectralSingleFluor(xwing, cornerstone)
+
+        # Set default automation
+        self.current_automation = self.single_fluor
+        self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
+        print("Default automation: SingleFluor")
+
+    def switch_to_hyperspectral(self):
+        """Switch to HyperSpectral automation"""
+        self.current_automation = self.hyperspectral
+        self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
+        print("Switched to: HyperSpectral")
+
+    def switch_to_extinction(self):
+        """Switch to HyperSpectralExtinction automation"""
+        self.current_automation = self.extinction
+        self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
+        print("Switched to: HyperSpectralExtinction")
+
+    def switch_to_single_fluor(self):
+        """Switch to HyperSpectralSingleFluor automation"""
+        self.current_automation = self.single_fluor
+        self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
+        print("Switched to: HyperSpectralSingleFluor")
 
 
 def main():
@@ -21,17 +57,55 @@ def main():
     # Importing cores
     xwing = XWing()
     cornerstone = Cornerstone()
-    extinction = HyperSpectralSingleFluor(xwing, cornerstone)
 
+    # Create automation manager
+    automation_manager = AutomationManager(xwing, cornerstone, engine)
 
     # Make "backend" visible to QML (what we used in the .qml file)
     engine.rootContext().setContextProperty("CornerstoneBackend", cornerstone)
     engine.rootContext().setContextProperty("XWingBackend", xwing)
-    engine.rootContext().setContextProperty("AutomationBackend", extinction)
 
     qml_file = Path(__file__).resolve().parent / "components/main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_file)))
 
+    # Get the root QML window to add menu bar
+    if not engine.rootObjects():
+        sys.exit(-1)
+
+    root = engine.rootObjects()[0]
+
+    # Create menu bar
+    menu_bar = QMenuBar()
+    automation_menu = menu_bar.addMenu("&Automation")
+
+    # Add menu items for each automation cluster
+    hyperspectral_action = automation_menu.addAction("HyperSpectral")
+    hyperspectral_action.triggered.connect(automation_manager.switch_to_hyperspectral)
+
+    extinction_action = automation_menu.addAction("HyperSpectral Extinction")
+    extinction_action.triggered.connect(automation_manager.switch_to_extinction)
+
+    single_fluor_action = automation_menu.addAction("HyperSpectral SingleFluor")
+    single_fluor_action.triggered.connect(automation_manager.switch_to_single_fluor)
+    single_fluor_action.setCheckable(True)
+    single_fluor_action.setChecked(True)  # Default selection
+
+    # Make actions checkable and mutually exclusive
+    hyperspectral_action.setCheckable(True)
+    extinction_action.setCheckable(True)
+
+    # Create action group for mutual exclusivity
+    action_group = QActionGroup(menu_bar)
+    action_group.addAction(hyperspectral_action)
+    action_group.addAction(extinction_action)
+    action_group.addAction(single_fluor_action)
+
+    # Attach menu bar to the window
+    if hasattr(root, 'setMenuBar'):
+        root.setMenuBar(menu_bar)
+    else:
+        # For QML windows, we need to show the menu bar separately
+        menu_bar.show()
 
     sys.exit(app.exec())
 
