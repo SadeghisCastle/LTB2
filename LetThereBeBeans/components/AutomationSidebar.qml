@@ -63,12 +63,12 @@ Rectangle {
 
                     Button {
                         anchors.fill: parent
-                        text: "HyperSpectral"
+                        text: "Extinction"
                         font.pixelSize: 11
                         font.family: "Courier"
                         onClicked: {
                             automationSelector.currentIndex = 0
-                            AutomationManager.switchToHyperspectral()
+                            AutomationManager.switchToExtinction()
                         }
                     }
                 }
@@ -83,31 +83,11 @@ Rectangle {
 
                     Button {
                         anchors.fill: parent
-                        text: "Extinction"
-                        font.pixelSize: 11
-                        font.family: "Courier"
-                        onClicked: {
-                            automationSelector.currentIndex = 1
-                            AutomationManager.switchToExtinction()
-                        }
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 45
-                    color: automationSelector.currentIndex === 2 ? "#149700" : "#4d4d4d"
-                    border.width: 2
-                    border.color: automationSelector.currentIndex === 2 ? "#00ff00" : "#000000"
-                    radius: 5
-
-                    Button {
-                        anchors.fill: parent
                         text: "SingleFluor"
                         font.pixelSize: 11
                         font.family: "Courier"
                         onClicked: {
-                            automationSelector.currentIndex = 2
+                            automationSelector.currentIndex = 1
                             AutomationManager.switchToSingleFluor()
                         }
                     }
@@ -115,7 +95,7 @@ Rectangle {
 
                 QtObject {
                     id: automationSelector
-                    property int currentIndex: 2  // Default to SingleFluor
+                    property int currentIndex: -1  // No automation selected by default
                 }
             }
         }
@@ -178,13 +158,13 @@ Rectangle {
                     width: 20
                     height: 20
                     radius: 10
-                    color: "#00ff00"
+                    color: automationSelector.currentIndex >= 0 ? "#00ff00" : "#ff6d00"
                     border.width: 2
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 Text {
-                    text: "Ready"
+                    text: automationSelector.currentIndex >= 0 ? "Ready" : "Not Loaded"
                     color: "#bbf6ef"
                     font.pixelSize: 12
                     font.family: "Courier"

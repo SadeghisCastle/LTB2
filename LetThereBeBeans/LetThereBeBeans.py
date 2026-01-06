@@ -23,8 +23,9 @@ class AutomationManager(QObject):
         self.current_automation = None
         self.current_type = None
 
-        # Initialize with default automation
-        self._initialize_automation('single_fluor')
+        # Don't initialize any automation at startup to avoid hardware conflicts
+        # User must select an automation mode from the sidebar
+        print("AutomationManager ready - no automation loaded. Please select a mode from the sidebar.")
 
     def _cleanup_current_automation(self):
         """Clean up the current automation before switching"""
@@ -125,17 +126,13 @@ def main():
     automation_menu = menu_bar.addMenu("&Automation")
 
     # Add menu items for each automation cluster
-
     extinction_action = automation_menu.addAction("HyperSpectral Extinction")
     extinction_action.triggered.connect(automation_manager.switchToExtinction)
+    extinction_action.setCheckable(True)
 
     single_fluor_action = automation_menu.addAction("HyperSpectral SingleFluor")
     single_fluor_action.triggered.connect(automation_manager.switchToSingleFluor)
     single_fluor_action.setCheckable(True)
-    single_fluor_action.setChecked(True)  # Default selection
-
-    # Make actions checkable and mutually exclusive
-    extinction_action.setCheckable(True)
 
     # Create action group for mutual exclusivity
     action_group = QActionGroup(menu_bar)
