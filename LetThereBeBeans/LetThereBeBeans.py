@@ -6,7 +6,7 @@ import os
 os.environ["QT_QUICK_CONTROLS_STYLE"] = "Fusion"
 from PySide6.QtWidgets import QApplication, QMenuBar
 from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtCore import QUrl, QObject
+from PySide6.QtCore import QUrl, QObject, Slot
 from PySide6.QtGui import QActionGroup
 from automation_clusters import HyperSpectral, HyperSpectralExtinction, HyperSpectralSingleFluor
 from cores import XWing, Cornerstone, Oscilloscope
@@ -72,18 +72,21 @@ class AutomationManager(QObject):
         self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
         print(f"Initialized automation: {self.current_type}")
 
-    def switch_to_hyperspectral(self):
-        """Switch to HyperSpectral automation"""
+    @Slot()
+    def switchToHyperspectral(self):
+        """Switch to HyperSpectral automation (callable from QML)"""
         if self.current_type != 'HyperSpectral':
             self._initialize_automation('hyperspectral')
 
-    def switch_to_extinction(self):
-        """Switch to HyperSpectralExtinction automation"""
+    @Slot()
+    def switchToExtinction(self):
+        """Switch to HyperSpectralExtinction automation (callable from QML)"""
         if self.current_type != 'HyperSpectralExtinction':
             self._initialize_automation('extinction')
 
-    def switch_to_single_fluor(self):
-        """Switch to HyperSpectralSingleFluor automation"""
+    @Slot()
+    def switchToSingleFluor(self):
+        """Switch to HyperSpectralSingleFluor automation (callable from QML)"""
         if self.current_type != 'HyperSpectralSingleFluor':
             self._initialize_automation('single_fluor')
 
@@ -103,6 +106,7 @@ def main():
     # Make "backend" visible to QML (what we used in the .qml file)
     engine.rootContext().setContextProperty("CornerstoneBackend", cornerstone)
     engine.rootContext().setContextProperty("XWingBackend", xwing)
+    engine.rootContext().setContextProperty("AutomationManager", automation_manager)
 
     qml_file = Path(__file__).resolve().parent / "components/main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_file)))
@@ -119,13 +123,13 @@ def main():
 
     # Add menu items for each automation cluster
     hyperspectral_action = automation_menu.addAction("HyperSpectral")
-    hyperspectral_action.triggered.connect(automation_manager.switch_to_hyperspectral)
+    hyperspectral_action.triggered.connect(automation_manager.switchToHyperspectral)
 
     extinction_action = automation_menu.addAction("HyperSpectral Extinction")
-    extinction_action.triggered.connect(automation_manager.switch_to_extinction)
+    extinction_action.triggered.connect(automation_manager.switchToExtinction)
 
     single_fluor_action = automation_menu.addAction("HyperSpectral SingleFluor")
-    single_fluor_action.triggered.connect(automation_manager.switch_to_single_fluor)
+    single_fluor_action.triggered.connect(automation_manager.switchToSingleFluor)
     single_fluor_action.setCheckable(True)
     single_fluor_action.setChecked(True)  # Default selection
 
