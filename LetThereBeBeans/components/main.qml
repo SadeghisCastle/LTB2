@@ -11,13 +11,18 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // Automation sidebar
+        // ========================================
+        // AUTOMATION SIDEBAR
+        // ========================================
         Loader {
             width: 150
             height: 600
             source: "AutomationSidebar.qml"
         }
 
+        // ========================================
+        // LEFT COLUMN - Position & Hardware Controls
+        // ========================================
         Column {
             width: 200
             height: 550
@@ -42,6 +47,9 @@ ApplicationWindow {
             }
         }
 
+        // ========================================
+        // RIGHT COLUMN - Spectroscopy & Automation
+        // ========================================
         Column {
             width: 400
             height: 550
@@ -59,7 +67,7 @@ ApplicationWindow {
                 source: "PositionManager.qml"
             }
 
-            // Automation controls
+            // Automation Start/Stop Controls
             Rectangle {
                 width: 400
                 height: 50
@@ -75,6 +83,7 @@ ApplicationWindow {
                     radius: 5
                     border.width: 2
 
+                    // Start Scan Button
                     Rectangle {
                         x: 10
                         y: 8
@@ -91,6 +100,7 @@ ApplicationWindow {
                         }
                     }
 
+                    // Stop Scan Button
                     Rectangle {
                         x: 194
                         y: 8
