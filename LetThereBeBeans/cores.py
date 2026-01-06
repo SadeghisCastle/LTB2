@@ -230,7 +230,31 @@ class XWing(QObject):
         """Expose reference as QVariant for QML"""
         return self.reference if self.reference else {}
 
+class PMTGainShield(QObject):
+    
+    
+    gainChanged = Signal()
 
+    def __init__(self):
+        super().__init__()
+        self._gain = 0
+        self.ac = ArduinoClient("COM8", 115200)
+        print("PMT Gain Shield online")
+        
+
+    # --- X position as a float (if you ever want numeric binding) ---
+    @Property(float, notify=gainChanged)
+    def currentGain(self):
+        return f"{self._gain}"
+
+    @Slot(str)
+    def setGain(self, desiredGain):
+        if desiredGain < 1.2:
+            self._gain = desiredGain
+            self.ac.commandSend(f"{desiredGain}")
+            self.gainChanged.emit()
+        else: 
+            print("Can't do that chief. Max gain is 1.2.")
 
 class Cornerstone(QObject):
     waveChanged = Signal()
@@ -449,127 +473,3 @@ class Oscilloscope(QObject):
         if self.plot_window:
             self.plot_window.close()
 
-class MasterCore(XWing, Cornerstone): # Add new cores here
-    """ Combined class with all cores. """
-    # Re-declare all signals 
-    xChanged = Signal()
-    yChanged = Signal()
-    waveChanged = Signal()
-    shutterChanged = Signal()
-    startWavelengthChanged = Signal()
-    endWavelengthChanged = Signal()
-    numStepsChanged = Signal()
-    
-    def __init__(self): # Initialize new cores here
-        QObject.__init__(self)
-        XWing.__init__(self)
-        Cornerstone.__init__(self)
-        print("MasterCore online")
-
-    # --- X position as a float (if you ever want numeric binding) ---
-    @Property(float, notify=xChanged)
-    def xPos(self):
-        return self._x
-
-    # --- Y position ---
-    @Property(float, notify=yChanged)
-    def yPos(self):
-        return self._y
-
-    # --- String versions for your labels ---
-    @Property(str, notify=xChanged)
-    def xPosString(self):
-        return f"{self._x:.2f}"
-
-    @Property(str, notify=yChanged)
-    def yPosString(self):
-        return f"{self._y:.2f}"
-    
-    # Cornerstone properties
-    @Property(str, notify=waveChanged)
-    def wavePos(self):
-        return str(self.currentWavelength)
-    
-    @Property(str, notify=shutterChanged)
-    def shutterPos(self):
-        return self.shutterState
-    
-    @Property(float, notify=startWavelengthChanged)
-    def startWavelengthValue(self):
-        return self.startWavelength
-    
-    @Property(float, notify=endWavelengthChanged)
-    def endWavelengthValue(self):
-        return self.endWavelength
-    
-    @Property(int, notify=numStepsChanged)
-    def numStepsValue(self):
-        return self.numSteps
-    
-    # --- Movement slots (called from QML) ---
-    @Slot()
-    def moveUp(self):
-        XWing.moveUp(self)
-
-    @Slot()
-    def moveDown(self):
-        XWing.moveDown(self)
-
-    @Slot()
-    def moveRight(self):
-        XWing.moveRight(self)
-
-    @Slot()
-    def moveLeft(self):
-        XWing.moveLeft(self)
-
-    @Slot()
-    def home(self):
-        XWing.home(self)
-
-    @Slot()
-    def setHome(self):
-        XWing.setHome(self)
-
-    @Slot(str, str)
-    def setPosition(self, x_str, y_str):
-        XWing.setPosition(self, x_str, y_str)
-
-    @Slot(float, float)
-    def storeCoordinates(self, x, y):
-        XWing.storeCoordinates(self, x, y)
-
-    @Slot()
-    def recall(self):
-        XWing.recall(self)
-    
-    # Cornerstone slots
-    @Slot(str)
-    def setStartWavelength(self, value_str):
-        Cornerstone.setStartWavelength(self, value_str)
-    
-    @Slot(str)
-    def setEndWavelength(self, value_str):
-        Cornerstone.setEndWavelength(self, value_str)
-    
-    @Slot(str)
-    def setNumSteps(self, value_str):
-        Cornerstone.setNumSteps(self, value_str)
-    
-    @Slot(str)
-    def setWavelength(self, target_str):
-        Cornerstone.setWavelength(self, target_str)
-    
-    @Slot()
-    def openShutter(self):
-        Cornerstone.openShutter(self)
-    
-    @Slot()
-    def closeShutter(self):
-        Cornerstone.closeShutter(self)
-
-    @Slot(str)
-    def setSaveLocation(self, path):
-        """Receive the selected path from QML"""
-        self.save_directory = path
-        print(f"Save location set to: {path}")

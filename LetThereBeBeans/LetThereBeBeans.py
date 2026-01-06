@@ -9,8 +9,8 @@ from PySide6.QtWidgets import QApplication, QMenuBar
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import QUrl, QObject, Slot
 from PySide6.QtGui import QActionGroup
-from automation_clusters import HyperSpectral, HyperSpectralExtinction, HyperSpectralSingleFluor
-from cores import XWing, Cornerstone, Oscilloscope
+from automation_clusters import HyperSpectralExtinction, HyperSpectralSingleFluor
+from cores import XWing, Cornerstone, Oscilloscope, PMTGainShield
 
 
 class AutomationManager(QObject):
@@ -100,6 +100,7 @@ def main():
     # Importing cores
     xwing = XWing()
     cornerstone = Cornerstone()
+    pmt = PMTGainShield()
 
     # Create automation manager
     automation_manager = AutomationManager(xwing, cornerstone, engine)
@@ -108,6 +109,7 @@ def main():
     engine.rootContext().setContextProperty("CornerstoneBackend", cornerstone)
     engine.rootContext().setContextProperty("XWingBackend", xwing)
     engine.rootContext().setContextProperty("AutomationManager", automation_manager)
+    engine.rootContext().setContextProperties("PMTGainShieldBackend", pmt)
 
     qml_file = Path(__file__).resolve().parent / "components/main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_file)))
@@ -123,8 +125,6 @@ def main():
     automation_menu = menu_bar.addMenu("&Automation")
 
     # Add menu items for each automation cluster
-    hyperspectral_action = automation_menu.addAction("HyperSpectral")
-    hyperspectral_action.triggered.connect(automation_manager.switchToHyperspectral)
 
     extinction_action = automation_menu.addAction("HyperSpectral Extinction")
     extinction_action.triggered.connect(automation_manager.switchToExtinction)
@@ -135,12 +135,10 @@ def main():
     single_fluor_action.setChecked(True)  # Default selection
 
     # Make actions checkable and mutually exclusive
-    hyperspectral_action.setCheckable(True)
     extinction_action.setCheckable(True)
 
     # Create action group for mutual exclusivity
     action_group = QActionGroup(menu_bar)
-    action_group.addAction(hyperspectral_action)
     action_group.addAction(extinction_action)
     action_group.addAction(single_fluor_action)
 

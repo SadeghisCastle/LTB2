@@ -34,6 +34,12 @@ ApplicationWindow {
                 height: 150
                 source: "OscilloscopeController.qml"
             }
+
+            Loader {
+                width: 200
+                height: 180
+                source: "PMTGainShield.qml"
+            }
         }
 
         Column {
