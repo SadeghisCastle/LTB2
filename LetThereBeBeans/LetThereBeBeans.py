@@ -19,34 +19,73 @@ class AutomationManager(QObject):
         self.xwing = xwing
         self.cornerstone = cornerstone
         self.engine = engine
+        self.current_automation = None
+        self.current_type = None
 
-        # Initialize all automation clusters
-        self.hyperspectral = HyperSpectral(xwing, cornerstone)
-        self.extinction = HyperSpectralExtinction(xwing, cornerstone)
-        self.single_fluor = HyperSpectralSingleFluor(xwing, cornerstone)
+        # Initialize with default automation
+        self._initialize_automation('single_fluor')
 
-        # Set default automation
-        self.current_automation = self.single_fluor
+    def _cleanup_current_automation(self):
+        """Clean up the current automation before switching"""
+        if self.current_automation is None:
+            return
+
+        # Stop any running scans
+        if hasattr(self.current_automation, 'stopScan'):
+            self.current_automation.stopScan()
+
+        # Close hardware connections that need cleanup
+        if hasattr(self.current_automation, 'pmt'):
+            try:
+                self.current_automation.pmt.commandSend("0")  # Turn off PMT
+                if hasattr(self.current_automation.pmt, 'close'):
+                    self.current_automation.pmt.close()
+            except Exception as e:
+                print(f"Warning: Could not clean up PMT: {e}")
+
+        if hasattr(self.current_automation, 'digi'):
+            try:
+                if hasattr(self.current_automation.digi, 'close'):
+                    self.current_automation.digi.close()
+            except Exception as e:
+                print(f"Warning: Could not clean up digitizer: {e}")
+
+        print(f"Cleaned up {self.current_type} automation")
+
+    def _initialize_automation(self, automation_type):
+        """Initialize a specific automation cluster"""
+        # Clean up current automation first
+        self._cleanup_current_automation()
+
+        # Create new automation instance
+        if automation_type == 'hyperspectral':
+            self.current_automation = HyperSpectral(self.xwing, self.cornerstone)
+            self.current_type = 'HyperSpectral'
+        elif automation_type == 'extinction':
+            self.current_automation = HyperSpectralExtinction(self.xwing, self.cornerstone)
+            self.current_type = 'HyperSpectralExtinction'
+        elif automation_type == 'single_fluor':
+            self.current_automation = HyperSpectralSingleFluor(self.xwing, self.cornerstone)
+            self.current_type = 'HyperSpectralSingleFluor'
+
+        # Update QML context
         self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
-        print("Default automation: SingleFluor")
+        print(f"Initialized automation: {self.current_type}")
 
     def switch_to_hyperspectral(self):
         """Switch to HyperSpectral automation"""
-        self.current_automation = self.hyperspectral
-        self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
-        print("Switched to: HyperSpectral")
+        if self.current_type != 'HyperSpectral':
+            self._initialize_automation('hyperspectral')
 
     def switch_to_extinction(self):
         """Switch to HyperSpectralExtinction automation"""
-        self.current_automation = self.extinction
-        self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
-        print("Switched to: HyperSpectralExtinction")
+        if self.current_type != 'HyperSpectralExtinction':
+            self._initialize_automation('extinction')
 
     def switch_to_single_fluor(self):
         """Switch to HyperSpectralSingleFluor automation"""
-        self.current_automation = self.single_fluor
-        self.engine.rootContext().setContextProperty("AutomationBackend", self.current_automation)
-        print("Switched to: HyperSpectralSingleFluor")
+        if self.current_type != 'HyperSpectralSingleFluor':
+            self._initialize_automation('single_fluor')
 
 
 def main():
