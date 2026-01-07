@@ -69,11 +69,11 @@ class HyperSpectralExtinction(QObject):
         self.worker = None
         # Use shared PMTGainShield's Arduino connection if provided
         if pmt_shield is not None:
-            self.pmt = pmt_shield.ac
+            self.pmt = pmt_shield
         else:
-            self.pmt = ArduinoClient("COM8", 115200)
+            print("Where the Arduino tho?")
         self.gain = 0
-        self.pmt.commandSend(f"{self.gain:.3f}")
+        self.pmt.setGain(f"{self.gain:.3f}")
         self.xwing = xwing
         self.cornerstone = cornerstone
         self.gain_map = {}
@@ -100,7 +100,7 @@ class HyperSpectralExtinction(QObject):
         if self.worker:
             self.worker.stop()
             self.worker = None
-            self.pmt.commandSend("0")
+            self.pmt.ac.commandSend("0")
             print("Stopping scan...")
     
     def _scanPosition(self, coord, scan_type, adjust_gain=True):
@@ -161,7 +161,10 @@ class HyperSpectralExtinction(QObject):
                             step = 0.001
                         
                         if voltage_error > 0:
-                            self.gain -= step * 0.7
+                            if (self.gain - step) > 0:
+                                self.gain -= step * 0.7
+                            else: 
+                                self.gain = 0
                             print(f"    Voltage {dataPoint:.2f}V (target {TARGET_VOLTAGE:.1f}V), reducing gain to {self.gain:.3f}")
                         else:
                             if (self.gain + step < 1):
@@ -171,7 +174,9 @@ class HyperSpectralExtinction(QObject):
                                 print("too much sauce")
                                 break
                         
-                        self.pmt.commandSend(f"{self.gain:.3f}")
+                        self.pmt.ac.commandSend(f"{self.gain:.2f}")
+                        self.pmt.gainChanged.emit()
+                        
                         time.sleep(1.5)
                         dataPoint = self.digi.record()
                         adjustment_count += 1
@@ -185,7 +190,7 @@ class HyperSpectralExtinction(QObject):
                 key = round(wavelength, 2)
                 if key in self.gain_map:
                     self.gain = self.gain_map[key]
-                    self.pmt.commandSend(f"{self.gain:.3f}")
+                    self.pmt.setGain(f"{self.gain:.3f}")
                     time.sleep(1.5)
                 else:
                     print(f"No reference gain found for Region {region}, λ={wavelength:.2f} nm")

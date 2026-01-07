@@ -252,7 +252,7 @@ class PMTGainShield(QObject):
         desiredGain = float(desiredGain)
         if desiredGain < 1.2:
             self._gain = desiredGain
-            self.ac.commandSend(f"{desiredGain}")
+            self.ac.commandSend(f"{desiredGain:.3f}")
             self.gainChanged.emit()
         else: 
             print("Can't do that chief. Max gain is 1.2.")
