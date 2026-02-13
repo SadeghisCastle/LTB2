@@ -4,9 +4,7 @@ from hardware_controllers import *
 import pyqtgraph as pg
 
 
-""" Create QObject classes for each hardware controller then 
-just copy and paste the slots, signals, and properties to
-MasterCore so it can be simply used in automations """
+""" Create QObject classes for each hardware controller. """
 class Worker(QObject):
     """ Object that creates a thread for automation logic then moves logic
     to that thread. All you have to do is create the object with the function 
@@ -52,7 +50,6 @@ class Worker(QObject):
         return self.thread is not None and self.thread.isRunning()
 
 class XWing(QObject):
-    
     
     xChanged = Signal()
     yChanged = Signal()
@@ -230,8 +227,6 @@ class XWing(QObject):
         """Expose reference as QVariant for QML"""
         return self.reference if self.reference else {}
 
-
-
 class Cornerstone(QObject):
     waveChanged = Signal()
     shutterChanged = Signal()
@@ -346,7 +341,6 @@ class LivePlot(QObject):
         if self.plot_window:
             self.plot_window.close()
 
-class Oscilloscope(QObject):
     """Live oscilloscope waveform viewer"""
     
     def __init__(self):
@@ -449,7 +443,6 @@ class Oscilloscope(QObject):
         if self.plot_window:
             self.plot_window.close()
 
-class MasterCore(XWing, Cornerstone): # Add new cores here
     """ Combined class with all cores. """
     # Re-declare all signals 
     xChanged = Signal()
